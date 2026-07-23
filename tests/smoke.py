@@ -161,6 +161,9 @@ def main() -> int:
         page.goto(index_url)
 
         expect(page.get_by_test_id("mocchi")).to_be_visible()
+        animation_state = page.get_by_test_id("mocchi-animation-state")
+        expect(animation_state).to_contain_text("mood neutral")
+        expect(animation_state).to_contain_text("speaking false")
         expect(page.get_by_test_id("session-count")).to_contain_text("Session")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Tap Mocchi")
 
@@ -170,9 +173,12 @@ def main() -> int:
 
         page.get_by_test_id("mocchi").click()
         expect(page.get_by_test_id("speech-bubble")).not_to_contain_text("Tap Mocchi")
+        expect(animation_state).to_contain_text("mood happy")
+        expect(animation_state).to_contain_text("tap active")
 
         page.get_by_test_id("prompt-teach-word").click()
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Konnichiwa")
+        expect(animation_state).to_contain_text("mood thinking")
 
         sound_toggle = page.get_by_test_id("sound-toggle")
         expect(sound_toggle).to_have_attribute("aria-pressed", "true")
@@ -182,6 +188,7 @@ def main() -> int:
         record_button = page.get_by_test_id("record-button")
         record_button.click()
         expect(record_button).to_have_attribute("aria-pressed", "true")
+        expect(animation_state).to_contain_text("mood listening")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text(re.compile("Listening|Pretending"))
 
       finally:

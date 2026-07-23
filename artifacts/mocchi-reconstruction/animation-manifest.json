@@ -1,0 +1,15 @@
+{
+  "character": "Mocchi",
+  "runtime": "Three.js procedural rig",
+  "states": {
+    "idle": {"loop": true, "durationMs": 2600, "channels": ["root.float", "root.yaw", "body.breathe"]},
+    "tap": {"loop": false, "durationMs": 420, "channels": ["root.squash", "root.nod", "body.forward-pulse"]},
+    "happy": {"loop": true, "durationMs": 1500, "channels": ["eyes.closed", "mouth.smile", "arms.wave", "root.bob"]},
+    "curious": {"loop": true, "durationMs": 1800, "channels": ["brow.asymmetry", "eye.widen", "head.tilt"]},
+    "thinking": {"loop": true, "durationMs": 2200, "channels": ["brow.furrow", "arm.right-to-chin", "root.sway"]},
+    "shy": {"loop": true, "durationMs": 1900, "channels": ["eyes.lowered", "blush.amplify", "arm.right-to-cheek", "root.sway"]},
+    "listening": {"loop": true, "durationMs": 1400, "channels": ["eyes.widen", "brow.attentive", "head.scan"]},
+    "speaking": {"loop": true, "durationMs": 300, "channels": ["mouth.chat", "body.breathe"]}
+  },
+  "performance": {"targetFps": 60, "mobilePixelRatioCap": 2, "externalAssets": false}
+}

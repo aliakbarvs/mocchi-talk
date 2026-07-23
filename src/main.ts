@@ -63,6 +63,7 @@ const fallback = mustGet<HTMLElement>('webgl-fallback');
 const mocchiButton = mustGet<HTMLButtonElement>('mocchi-button');
 const speechBubble = mustGet<HTMLElement>('speech-bubble');
 const speechText = mustGet<HTMLElement>('speech-text');
+const animationStateLabel = mustGet<HTMLElement>('mocchi-animation-state');
 const toast = mustGet<HTMLElement>('feedback-toast');
 const soundToggle = mustGet<HTMLButtonElement>('sound-toggle');
 const recordButton = mustGet<HTMLButtonElement>('record-button');
@@ -74,13 +75,19 @@ let currentMood: MocchiMood = 'neutral';
 let tapIndex = 0;
 let toastTimer = 0;
 let recordTimer = 0;
+let tapStateTimer = 0;
+let speechStateTimer = 0;
+let speechRun = 0;
 let soundEnabled = loadSoundPreference();
+let tapActive = false;
+let speakingActive = false;
 let character: ReturnType<typeof createMocchiCharacter> | undefined;
 
 setupSessionCounter();
 setupSoundToggle();
 setupControls();
 setupScene();
+updateAnimationStateLabel();
 showToast('Welcome back to Mocchi Talk.');
 
 function mustGet<T extends HTMLElement>(id: string): T {
@@ -111,7 +118,10 @@ function setupSoundToggle(): void {
     soundEnabled = !soundEnabled;
     writeStorage(soundKey, soundEnabled ? 'true' : 'false');
     if (!soundEnabled) {
+      speechRun += 1;
+      clearTimeout(speechStateTimer);
       window.speechSynthesis?.cancel();
+      setSpeaking(false);
     }
     updateSoundToggle();
     showToast(soundEnabled ? 'Voice on.' : 'Voice off.');
@@ -132,6 +142,7 @@ function setupControls(): void {
   mocchiButton.addEventListener('click', () => {
     const reaction = tapReactions[tapIndex % tapReactions.length];
     tapIndex += 1;
+    triggerTap();
     applyResponse(reaction);
     writeStorage(hintKey, 'true');
     onboardingHint.classList.add('is-compact');
@@ -181,6 +192,33 @@ function setMood(mood: MocchiMood): void {
   currentMood = mood;
   speechBubble.dataset.mood = mood;
   character?.setMood(mood);
+  updateAnimationStateLabel();
+}
+
+function triggerTap(): void {
+  clearTimeout(tapStateTimer);
+  tapActive = true;
+  character?.triggerTap();
+  updateAnimationStateLabel();
+  tapStateTimer = window.setTimeout(
+    () => {
+      tapActive = false;
+      updateAnimationStateLabel();
+    },
+    reducedMotion ? 1 : 460
+  );
+}
+
+function setSpeaking(active: boolean): void {
+  speakingActive = active;
+  character?.setSpeaking(active);
+  updateAnimationStateLabel();
+}
+
+function updateAnimationStateLabel(): void {
+  animationStateLabel.textContent = `mood ${currentMood} speaking ${String(speakingActive)} tap ${
+    tapActive ? 'active' : 'idle'
+  }`;
 }
 
 function updateSpeech(text: string): void {
@@ -200,15 +238,34 @@ function showToast(message: string): void {
 
 function speak(text: string): void {
   if (!soundEnabled || !('speechSynthesis' in window)) {
+    setSpeaking(false);
     return;
   }
 
+  const run = (speechRun += 1);
+  clearTimeout(speechStateTimer);
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.92;
   utterance.pitch = 1.18;
   utterance.volume = 0.78;
+  utterance.onend = () => finishSpeech(run);
+  utterance.onerror = () => finishSpeech(run);
+  setSpeaking(true);
+  speechStateTimer = window.setTimeout(
+    () => finishSpeech(run),
+    Math.max(900, Math.min(5600, text.length * 75))
+  );
   window.speechSynthesis.speak(utterance);
+}
+
+function finishSpeech(run: number): void {
+  if (run !== speechRun) {
+    return;
+  }
+
+  clearTimeout(speechStateTimer);
+  setSpeaking(false);
 }
 
 function readStorage(key: string): string | null {
@@ -265,6 +322,7 @@ function setupScene(): void {
   character.group.position.set(0, -0.45, 0);
   scene.add(character.group);
   character.setMood(currentMood);
+  character.setSpeaking(speakingActive);
 
   const clock = new THREE.Clock();
 

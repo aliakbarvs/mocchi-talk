@@ -1,0 +1,16 @@
+{
+  "admitted": false,
+  "reasons": [
+    "mask coherence: largest connected blob is 0.14 of foreground < 0.6 (fragmented/scattered subject — ambiguous)"
+  ],
+  "provenance": {
+    "viewpoint": "sheet-front",
+    "sourcePath": "/home/clawdbot/clawd/projects/mocchi-talk/artifacts/mocchi-reconstruction/reference.png",
+    "width": 1280,
+    "height": 959,
+    "foregroundCoverage": 0.2016,
+    "largestComponentFraction": 0.1412,
+    "pHash": 11452662269484134415,
+    "duplicateOfHash": null
+  }
+}
