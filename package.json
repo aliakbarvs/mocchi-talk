@@ -1,0 +1,22 @@
+{
+  "name": "mocchi-talk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "python3 tests/smoke.py",
+    "test:smoke": "python3 tests/smoke.py"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.185.1",
+    "vite": "5.4.21",
+    "typescript": "5.9.3"
+  }
+}

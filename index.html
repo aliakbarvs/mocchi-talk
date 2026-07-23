@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F7F3E8" />
+    <meta
+      name="description"
+      content="Mocchi Talk is a calm touch-first language play MVP with a procedural Three.js Matcha character."
+    />
+    <title>Mocchi Talk</title>
+  </head>
+  <body>
+    <div id="app">
+      <main class="app-shell" aria-label="Mocchi Talk">
+        <section class="scene-panel" aria-label="Mocchi play scene">
+          <div class="sky-shape sky-shape-a" aria-hidden="true"></div>
+          <div class="sky-shape sky-shape-b" aria-hidden="true"></div>
+          <canvas id="scene-canvas" aria-label="3D Mocchi character scene"></canvas>
+          <div id="webgl-fallback" class="webgl-fallback" role="status" hidden>
+            Mocchi needs WebGL for 3D. You can still use the prompts and speech bubble.
+          </div>
+          <button
+            id="mocchi-button"
+            class="mocchi-touch"
+            type="button"
+            data-testid="mocchi"
+            aria-label="Tap Mocchi"
+          ></button>
+          <aside id="speech-bubble" class="speech-bubble" aria-live="polite" data-testid="speech-bubble">
+            <p id="speech-text">Tap Mocchi or choose a prompt.</p>
+          </aside>
+          <div id="onboarding-hint" class="onboarding-hint">
+            Tap Mocchi for a friendly reaction. Session count is saved only in this browser.
+          </div>
+          <div id="feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
+        </section>
+
+        <section class="bottom-dock" aria-label="Mocchi controls">
+          <div class="status-row">
+            <span class="session-pill" data-testid="session-count" aria-label="Local session count">Session 1</span>
+            <button
+              id="sound-toggle"
+              class="icon-button"
+              type="button"
+              data-testid="sound-toggle"
+              aria-label="Turn sound off"
+              aria-pressed="true"
+            >
+              <span aria-hidden="true">Sound</span>
+            </button>
+            <button
+              id="record-button"
+              class="icon-button record-button"
+              type="button"
+              data-testid="record-button"
+              aria-label="Practice speaking"
+              aria-pressed="false"
+            >
+              <span aria-hidden="true">Mic</span>
+            </button>
+          </div>
+          <div class="prompt-grid" aria-label="Conversation prompts">
+            <button class="prompt-button" type="button" data-testid="prompt-say-hello" data-prompt="hello">
+              Say hello
+            </button>
+            <button class="prompt-button" type="button" data-testid="prompt-how-are-you" data-prompt="feel">
+              How are you?
+            </button>
+            <button class="prompt-button" type="button" data-testid="prompt-teach-word" data-prompt="word">
+              Teach me a word
+            </button>
+            <button class="prompt-button" type="button" data-testid="prompt-tell-joke" data-prompt="joke">
+              Tell a joke
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
