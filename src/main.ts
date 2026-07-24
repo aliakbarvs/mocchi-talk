@@ -112,10 +112,12 @@ let soundEnabled = loadSoundPreference();
 let tapActive = false;
 let speakingActive = false;
 let speechAudio: HTMLAudioElement | undefined;
+const narrationAudio = new Map<AudioClipId, HTMLAudioElement>();
 let character: ReturnType<typeof createMocchiCharacter> | undefined;
 
 setupSessionCounter();
 setupSoundToggle();
+setupNarrationAudio();
 setupControls();
 setupScene();
 updateAnimationStateLabel();
@@ -164,6 +166,27 @@ function updateSoundToggle(): void {
   soundToggle.setAttribute('aria-pressed', String(soundEnabled));
   soundToggle.setAttribute('aria-label', soundEnabled ? 'Turn sound off' : 'Turn sound on');
   soundToggle.querySelector('span')!.textContent = soundEnabled ? 'Sound' : 'Muted';
+}
+
+function setupNarrationAudio(): void {
+  const clipIds: AudioClipId[] = [
+    'hello',
+    'feel',
+    'word',
+    'joke',
+    'tap-hello',
+    'tap-feel',
+    'tap-word',
+    'tap-joke',
+    'practice-complete'
+  ];
+
+  for (const clipId of clipIds) {
+    const audio = new Audio(`/audio/mocchi/${clipId}.wav`);
+    audio.preload = 'auto';
+    audio.load();
+    narrationAudio.set(clipId, audio);
+  }
 }
 
 function setupControls(): void {
@@ -272,10 +295,15 @@ function speak(prompt: Prompt): void {
   }
 
   const run = (speechRun += 1);
-  const audio = new Audio(`/audio/mocchi/${prompt.audioClip}.wav`);
+  const audio = narrationAudio.get(prompt.audioClip) ?? new Audio(`/audio/mocchi/${prompt.audioClip}.wav`);
   speechAudio?.pause();
   speechAudio = audio;
   clearTimeout(speechStateTimer);
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Some browsers reject seeking before preloaded metadata is available.
+  }
   audio.preload = 'auto';
   audio.volume = 0.78;
   audio.onended = () => finishSpeech(run);

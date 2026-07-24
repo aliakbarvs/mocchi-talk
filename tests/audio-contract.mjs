@@ -29,3 +29,14 @@ assert.doesNotMatch(
   /speechSynthesis|SpeechSynthesisUtterance/,
   'Narration must use local audio clips instead of browser speech synthesis.'
 );
+
+assert.match(
+  mainSource,
+  /setupNarrationAudio\(\)/,
+  'Narration clips must be prepared before the first interaction.'
+);
+assert.match(
+  mainSource,
+  /audio\.preload\s*=\s*'auto'/,
+  'Narration clips must use browser preloading.'
+);
