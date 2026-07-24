@@ -4,12 +4,14 @@ import { createMocchiCharacter, type MocchiMood } from './mocchiCharacter';
 import { supportsWebGL } from './webgl';
 
 type PromptId = 'hello' | 'feel' | 'word' | 'joke';
+type AudioClipId = PromptId | `tap-${PromptId}` | 'practice-complete';
 
 type Prompt = {
   id: PromptId;
   mood: MocchiMood;
   response: string;
   toast: string;
+  audioClip: AudioClipId;
 };
 
 const palette = {
@@ -25,33 +27,61 @@ const prompts: Record<PromptId, Prompt> = {
     id: 'hello',
     mood: 'happy',
     response: "Hi hi! I'm Mocchi. Let's learn softly today.",
-    toast: 'Mocchi waves hello.'
+    toast: 'Mocchi waves hello.',
+    audioClip: 'hello'
   },
   feel: {
     id: 'feel',
     mood: 'shy',
     response: 'I feel warm and ready. How is your heart today?',
-    toast: 'Mocchi checks in.'
+    toast: 'Mocchi checks in.',
+    audioClip: 'feel'
   },
   word: {
     id: 'word',
     mood: 'thinking',
     response: 'Konnichiwa means hello in Japanese.',
-    toast: 'New word unlocked, calmly.'
+    toast: 'New word unlocked, calmly.',
+    audioClip: 'word'
   },
   joke: {
     id: 'joke',
     mood: 'curious',
     response: 'Why did the tea leaf smile? It found its perfect matcha.',
-    toast: 'Tiny joke delivered.'
+    toast: 'Tiny joke delivered.',
+    audioClip: 'joke'
   }
 };
 
 const tapReactions: Prompt[] = [
-  { id: 'hello', mood: 'happy', response: 'Squish! Mocchi is listening.', toast: 'Soft tap.' },
-  { id: 'feel', mood: 'curious', response: 'That tickles. Tell me a tiny thought.', toast: 'Mocchi perks up.' },
-  { id: 'word', mood: 'thinking', response: 'Small steps make big language magic.', toast: 'Gentle focus.' },
-  { id: 'joke', mood: 'shy', response: "You're doing great, one word at a time.", toast: 'Warm encouragement.' }
+  {
+    id: 'hello',
+    mood: 'happy',
+    response: 'Squish! Mocchi is listening.',
+    toast: 'Soft tap.',
+    audioClip: 'tap-hello'
+  },
+  {
+    id: 'feel',
+    mood: 'curious',
+    response: 'That tickles. Tell me a tiny thought.',
+    toast: 'Mocchi perks up.',
+    audioClip: 'tap-feel'
+  },
+  {
+    id: 'word',
+    mood: 'thinking',
+    response: 'Small steps make big language magic.',
+    toast: 'Gentle focus.',
+    audioClip: 'tap-word'
+  },
+  {
+    id: 'joke',
+    mood: 'shy',
+    response: "You're doing great, one word at a time.",
+    toast: 'Warm encouragement.',
+    audioClip: 'tap-joke'
+  }
 ];
 
 const sessionKey = 'mocchi-talk.session-count';
@@ -81,6 +111,7 @@ let speechRun = 0;
 let soundEnabled = loadSoundPreference();
 let tapActive = false;
 let speakingActive = false;
+let speechAudio: HTMLAudioElement | undefined;
 let character: ReturnType<typeof createMocchiCharacter> | undefined;
 
 setupSessionCounter();
@@ -118,10 +149,7 @@ function setupSoundToggle(): void {
     soundEnabled = !soundEnabled;
     writeStorage(soundKey, soundEnabled ? 'true' : 'false');
     if (!soundEnabled) {
-      speechRun += 1;
-      clearTimeout(speechStateTimer);
-      window.speechSynthesis?.cancel();
-      setSpeaking(false);
+      stopSpeech();
     }
     updateSoundToggle();
     showToast(soundEnabled ? 'Voice on.' : 'Voice off.');
@@ -175,7 +203,8 @@ function setupControls(): void {
         id: 'feel',
         mood: 'happy',
         response: 'Mocchi heard a brave practice voice.',
-        toast: 'Practice complete.'
+        toast: 'Practice complete.',
+        audioClip: 'practice-complete'
       });
     }, reducedMotion ? 900 : 1800);
   });
@@ -185,7 +214,7 @@ function applyResponse(prompt: Prompt): void {
   setMood(prompt.mood);
   updateSpeech(prompt.response);
   showToast(prompt.toast);
-  speak(prompt.response);
+  speak(prompt);
 }
 
 function setMood(mood: MocchiMood): void {
@@ -236,27 +265,46 @@ function showToast(message: string): void {
   }, reducedMotion ? 1200 : 2200);
 }
 
-function speak(text: string): void {
-  if (!soundEnabled || !('speechSynthesis' in window)) {
+function speak(prompt: Prompt): void {
+  if (!soundEnabled) {
     setSpeaking(false);
     return;
   }
 
   const run = (speechRun += 1);
+  const audio = new Audio(`/audio/mocchi/${prompt.audioClip}.wav`);
+  speechAudio?.pause();
+  speechAudio = audio;
   clearTimeout(speechStateTimer);
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.92;
-  utterance.pitch = 1.18;
-  utterance.volume = 0.78;
-  utterance.onend = () => finishSpeech(run);
-  utterance.onerror = () => finishSpeech(run);
+  audio.preload = 'auto';
+  audio.volume = 0.78;
+  audio.onended = () => finishSpeech(run);
+  audio.onerror = () => finishSpeech(run);
   setSpeaking(true);
   speechStateTimer = window.setTimeout(
     () => finishSpeech(run),
-    Math.max(900, Math.min(5600, text.length * 75))
+    Math.max(900, Math.min(5600, prompt.response.length * 75))
   );
-  window.speechSynthesis.speak(utterance);
+  const playPromise = audio.play();
+  if (playPromise) {
+    playPromise.catch(() => finishSpeech(run));
+  }
+}
+
+function stopSpeech(): void {
+  speechRun += 1;
+  clearTimeout(speechStateTimer);
+  if (speechAudio) {
+    speechAudio.onended = null;
+    speechAudio.onerror = null;
+    speechAudio.pause();
+    try {
+      speechAudio.currentTime = 0;
+    } catch {
+      // Some browsers reject seeking before metadata is available.
+    }
+  }
+  setSpeaking(false);
 }
 
 function finishSpeech(run: number): void {

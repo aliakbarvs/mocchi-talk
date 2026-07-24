@@ -16,7 +16,7 @@ The smoke test uses Python Playwright with the local Chromium under `~/.cache/ms
 
 ## Architecture
 
-- `src/main.ts` owns UI state, prompt responses, speech synthesis, localStorage session counting, record demo state, WebGL startup, and the render loop.
+- `src/main.ts` owns UI state, prompt responses, local audio narration playback, localStorage session counting, record demo state, WebGL startup, and the render loop.
 - `src/mocchiCharacter.ts` exports `createMocchiCharacter()`, returning a narrow `group`, `setMood()`, `triggerTap()`, `setSpeaking()`, `update()`, and `dispose()` interface. The current implementation is smooth procedural Three.js geometry, so a future GLB-backed factory can replace it without rewriting the UI loop.
 - `src/webgl.ts` contains feature detection for the fallback message.
 - `src/style.css` contains the mobile-first fullscreen layout, safe-area handling, large touch controls, calm Matcha SoftWonder visual language, and reduced-motion support.
@@ -28,6 +28,16 @@ The smoke test uses Python Playwright with the local Chromium under `~/.cache/ms
 Mocchi is still self-contained procedural Three.js: no GLB, CDN, or runtime image assets are loaded. The factory now builds an animation-ready rig with named root, body, head, arm, foot, headband, face, eye, and mouth pivots. Mood changes set rest poses, and `update(delta, elapsed)` eases the rig toward those poses while layering idle float, tap squash/stretch, happy waving, curious/thinking/shy/listening head and brow poses, and speech mouth chatter.
 
 The public factory methods are the replacement seam for a future GLB rig. A GLB-backed implementation can map the same `setMood()`, `triggerTap()`, `setSpeaking()`, `update()`, and `dispose()` calls to authored bones or clips without changing `src/main.ts`.
+
+## Narration Assets
+
+Mocchi narration is played from offline WAV assets at `public/audio/mocchi/<clip>.wav`, which Vite serves as `/audio/mocchi/<clip>.wav`. The app does not call a runtime TTS model, browser speech synthesis, or a network voice service.
+
+The local generation helper is `scripts/generate_pip_audio.py`. It uses Qwen3-TTS VoiceDesign with the manifest voice label `Pip-style original VoiceDesign`; this is an original designed voice style, not an exact voice identity, clone, or impersonation.
+
+```bash
+python3 scripts/generate_pip_audio.py --output public/audio/mocchi
+```
 
 ## Visual Note
 

@@ -158,6 +158,14 @@ def main() -> int:
 
       try:
         page = browser.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        page.add_init_script("""
+window.__mocchiPlayedAudio = [];
+HTMLMediaElement.prototype.play = function() {
+  window.__mocchiPlayedAudio.push(this.currentSrc || this.src);
+  return Promise.reject(new DOMException("Headless audio rejected", "NotAllowedError"));
+};
+HTMLMediaElement.prototype.pause = function() {};
+""")
         page.goto(index_url)
 
         expect(page.get_by_test_id("mocchi")).to_be_visible()
@@ -175,21 +183,35 @@ def main() -> int:
         expect(page.get_by_test_id("speech-bubble")).not_to_contain_text("Tap Mocchi")
         expect(animation_state).to_contain_text("mood happy")
         expect(animation_state).to_contain_text("tap active")
+        page.wait_for_function(
+          "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/tap-hello.wav'))"
+        )
+        expect(animation_state).to_contain_text("speaking false")
 
         page.get_by_test_id("prompt-teach-word").click()
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Konnichiwa")
         expect(animation_state).to_contain_text("mood thinking")
+        page.wait_for_function(
+          "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/word.wav'))"
+        )
+        expect(animation_state).to_contain_text("speaking false")
 
         sound_toggle = page.get_by_test_id("sound-toggle")
         expect(sound_toggle).to_have_attribute("aria-pressed", "true")
         sound_toggle.click()
         expect(sound_toggle).to_have_attribute("aria-pressed", "false")
+        sound_toggle.click()
+        expect(sound_toggle).to_have_attribute("aria-pressed", "true")
 
         record_button = page.get_by_test_id("record-button")
         record_button.click()
         expect(record_button).to_have_attribute("aria-pressed", "true")
         expect(animation_state).to_contain_text("mood listening")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text(re.compile("Listening|Pretending"))
+        page.wait_for_function(
+          "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/practice-complete.wav'))"
+        )
+        expect(animation_state).to_contain_text("speaking false")
 
       finally:
         stop_dist_server(server)
