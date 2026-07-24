@@ -25,6 +25,10 @@ type Rig = {
   head: THREE.Group;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
+  leftFoot: THREE.Group;
+  rightFoot: THREE.Group;
+  headband: THREE.Group;
+  face: THREE.Group;
   eyes: THREE.Group;
   mouth: THREE.Group;
 };
@@ -61,7 +65,7 @@ type MoodPose = {
 
 const TAP_DURATION = 0.42;
 const BASE_BODY_SCALE = new THREE.Vector3(1, 1, 1);
-const BASE_EYE_SCALE = new THREE.Vector3(0.9, 1.25, 0.28);
+const BASE_EYE_SCALE = new THREE.Vector3(0.95, 1.28, 0.34);
 
 export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   const group = new THREE.Group();
@@ -69,113 +73,90 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   const disposables: Array<{ dispose: () => void }> = [];
 
-  const creamMaterial = track(
-    new THREE.MeshStandardMaterial({ color: palette.cream, roughness: 0.92, metalness: 0, flatShading: true })
-  );
-  const coralMaterial = track(
-    new THREE.MeshStandardMaterial({ color: palette.coral, roughness: 0.88, metalness: 0, flatShading: true })
-  );
-  const yellowMaterial = track(
-    new THREE.MeshStandardMaterial({ color: palette.sunshine, roughness: 0.86, metalness: 0, flatShading: true })
-  );
-  const aquaMaterial = track(
-    new THREE.MeshStandardMaterial({ color: palette.aqua, roughness: 0.9, metalness: 0, flatShading: true })
-  );
-  const tealMaterial = track(new THREE.MeshStandardMaterial({ color: palette.teal, roughness: 0.76, metalness: 0 }));
+  const creamMaterial = track(new THREE.MeshStandardMaterial({ color: palette.cream, roughness: 0.86, metalness: 0 }));
+  const coralMaterial = track(new THREE.MeshStandardMaterial({ color: palette.coral, roughness: 0.78, metalness: 0 }));
+  const yellowMaterial = track(new THREE.MeshStandardMaterial({ color: palette.sunshine, roughness: 0.72, metalness: 0 }));
+  const aquaMaterial = track(new THREE.MeshStandardMaterial({ color: palette.aqua, roughness: 0.72, metalness: 0 }));
+  const tealMaterial = track(new THREE.MeshStandardMaterial({ color: palette.teal, roughness: 0.62, metalness: 0 }));
   const blushMaterial = track(
     new THREE.MeshStandardMaterial({
-      color: '#ff9a9a',
+      color: '#F58D93',
       roughness: 0.9,
       transparent: true,
-      opacity: 0.72,
-      flatShading: true
+      opacity: 0.9
     })
   );
-  const whiteMaterial = track(
-    new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.88, metalness: 0, flatShading: true })
-  );
-  const mouthWarmMaterial = track(
-    new THREE.MeshStandardMaterial({ color: '#ff806b', roughness: 0.8, metalness: 0 })
-  );
+  const whiteMaterial = track(new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.82, metalness: 0 }));
+  const mouthWarmMaterial = track(new THREE.MeshStandardMaterial({ color: '#ff806b', roughness: 0.76, metalness: 0 }));
 
   const rig = createRig();
   group.add(rig.root);
 
-  const bodyMesh = mesh(new THREE.SphereGeometry(1.18, 28, 18), creamMaterial);
-  bodyMesh.name = 'Oblate cream mochi body';
-  bodyMesh.scale.set(1.18, 0.92, 0.72);
+  const bodyMesh = tag(mesh(createSoftBodyGeometry(), creamMaterial), 'body-shell');
+  bodyMesh.name = 'Soft oblate cream mochi body';
+  bodyMesh.scale.set(1.18, 0.97, 0.8);
   bodyMesh.position.y = 0.34;
   rig.body.add(bodyMesh);
 
-  const leftFoot = mesh(new THREE.SphereGeometry(0.22, 16, 10), creamMaterial);
-  leftFoot.scale.set(1.15, 0.45, 0.7);
-  leftFoot.position.set(-0.42, -0.53, 0.46);
-  rig.body.add(leftFoot);
-
-  const rightFoot = leftFoot.clone();
-  rightFoot.position.x = 0.42;
-  rig.body.add(rightFoot);
+  addFoot(rig.leftFoot, -1, creamMaterial);
+  addFoot(rig.rightFoot, 1, creamMaterial);
 
   addArm(rig.leftArm, -1, creamMaterial);
   addArm(rig.rightArm, 1, creamMaterial);
 
-  const leftEar = createEar(creamMaterial);
-  leftEar.position.set(-0.72, 1.16, -0.03);
-  leftEar.rotation.set(0.06, 0.2, 0.52);
-  rig.head.add(leftEar);
+  const leftEarPivot = createEarPivot('leftEar', -1, creamMaterial);
+  const rightEarPivot = createEarPivot('rightEar', 1, creamMaterial);
+  rig.head.add(leftEarPivot, rightEarPivot);
 
-  const rightEar = createEar(creamMaterial);
-  rightEar.position.set(0.72, 1.16, -0.03);
-  rightEar.rotation.set(0.06, -0.2, -0.52);
-  rig.head.add(rightEar);
+  addHeadband(rig.headband, coralMaterial, whiteMaterial, yellowMaterial, aquaMaterial, tealMaterial);
 
-  addHeadband(rig.head, coralMaterial, whiteMaterial, yellowMaterial, aquaMaterial, tealMaterial);
-
-  const leftEye = mesh(new THREE.SphereGeometry(0.085, 16, 10), tealMaterial);
+  const leftEye = tag(mesh(new THREE.SphereGeometry(0.085, 24, 16), tealMaterial), 'eye');
   leftEye.scale.copy(BASE_EYE_SCALE);
-  leftEye.position.set(-0.38, 0.43, 0.86);
+  leftEye.position.set(-0.36, 0.45, 0.81);
   rig.eyes.add(leftEye);
 
   const rightEye = leftEye.clone();
-  rightEye.position.x = 0.38;
+  tag(rightEye, 'eye');
+  rightEye.position.x = 0.36;
   rig.eyes.add(rightEye);
 
-  const leftBrow = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.32, 10), tealMaterial);
-  leftBrow.position.set(-0.39, 0.68, 0.87);
+  const leftBrow = tag(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.33, 16), tealMaterial), 'brow');
+  leftBrow.position.set(-0.38, 0.67, 0.82);
   leftBrow.rotation.set(Math.PI / 2, 0, -0.86);
-  rig.head.add(leftBrow);
+  rig.face.add(leftBrow);
 
-  const rightBrow = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.32, 10), tealMaterial);
-  rightBrow.position.set(0.39, 0.68, 0.87);
+  const rightBrow = tag(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.33, 16), tealMaterial), 'brow');
+  rightBrow.position.set(0.38, 0.67, 0.82);
   rightBrow.rotation.set(Math.PI / 2, 0, 0.86);
-  rig.head.add(rightBrow);
+  rig.face.add(rightBrow);
 
   const neutralMouth = createCatMouth(tealMaterial);
-  neutralMouth.position.set(0, 0.28, 0.9);
+  neutralMouth.position.set(0, 0.23, 0.84);
   rig.mouth.add(neutralMouth);
 
   const smileMouth = createSmileMouth(tealMaterial, mouthWarmMaterial);
-  smileMouth.position.set(0, 0.25, 0.9);
+  smileMouth.position.set(0, 0.23, 0.84);
   rig.mouth.add(smileMouth);
 
   const thinkingMouth = mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 20), tealMaterial);
-  thinkingMouth.position.set(0, 0.27, 0.9);
+  thinkingMouth.position.set(0, 0.24, 0.85);
   thinkingMouth.scale.set(0.75, 1, 0.12);
   rig.mouth.add(thinkingMouth);
 
-  const openMouth = mesh(new THREE.SphereGeometry(0.09, 16, 8), mouthWarmMaterial);
-  openMouth.position.set(0, 0.25, 0.91);
+  const openMouth = mesh(new THREE.SphereGeometry(0.086, 18, 10), mouthWarmMaterial);
+  openMouth.position.set(0, 0.22, 0.85);
   openMouth.scale.set(0.8, 0.2, 0.13);
   rig.mouth.add(openMouth);
 
-  const leftBlush = mesh(new THREE.SphereGeometry(0.13, 14, 8), blushMaterial);
-  leftBlush.scale.set(1.35, 0.72, 0.16);
-  leftBlush.position.set(-0.64, 0.19, 0.84);
-  rig.head.add(leftBlush);
+  const leftBlush = tag(mesh(new THREE.SphereGeometry(0.12, 18, 10), blushMaterial), 'blush');
+  leftBlush.scale.set(1.45, 0.58, 0.14);
+  leftBlush.position.set(-0.58, 0.07, 0.8);
+  rig.face.add(leftBlush);
 
   const rightBlush = leftBlush.clone();
-  rightBlush.position.x = 0.64;
-  rig.head.add(rightBlush);
+  tag(rightBlush, 'blush');
+  rightBlush.position.x = 0.58;
+  rig.face.add(rightBlush);
 
   const faceParts: FaceParts = {
     leftEye,
@@ -271,7 +252,7 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     dampEuler(faceParts.leftBrow.rotation, pose.leftBrowRotation, delta, 12);
     dampEuler(faceParts.rightBrow.rotation, pose.rightBrowRotation, delta, 12);
 
-    const blushScale = new THREE.Vector3(1.35 * pose.blushScale, 0.72 * pose.blushScale, 0.16);
+    const blushScale = new THREE.Vector3(1.45 * pose.blushScale, 0.58 * pose.blushScale, 0.14);
     dampVector(faceParts.leftBlush.scale, blushScale, delta, 9);
     dampVector(faceParts.rightBlush.scale, blushScale, delta, 9);
     faceParts.blushMaterial.opacity = damp(faceParts.blushMaterial.opacity, pose.blushOpacity, delta, 8);
@@ -289,35 +270,64 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   function createRig(): Rig {
     const root = new THREE.Group();
-    root.name = 'MocchiRootPivot';
+    root.name = 'root';
     const body = new THREE.Group();
-    body.name = 'MocchiBodyPivot';
+    body.name = 'body';
     const head = new THREE.Group();
-    head.name = 'MocchiHeadPivot';
+    head.name = 'head';
     const leftArm = new THREE.Group();
-    leftArm.name = 'MocchiLeftArmPivot';
-    leftArm.position.set(-0.96, 0.36, 0.25);
+    leftArm.name = 'leftArm';
+    leftArm.position.set(-0.98, 0.26, 0.2);
     const rightArm = new THREE.Group();
-    rightArm.name = 'MocchiRightArmPivot';
-    rightArm.position.set(0.96, 0.36, 0.25);
+    rightArm.name = 'rightArm';
+    rightArm.position.set(0.98, 0.26, 0.2);
+    const leftFoot = new THREE.Group();
+    leftFoot.name = 'leftFoot';
+    leftFoot.position.set(-0.42, -0.5, 0.35);
+    const rightFoot = new THREE.Group();
+    rightFoot.name = 'rightFoot';
+    rightFoot.position.set(0.42, -0.5, 0.35);
+    const headband = new THREE.Group();
+    headband.name = 'headband';
+    const face = new THREE.Group();
+    face.name = 'face';
     const eyes = new THREE.Group();
-    eyes.name = 'MocchiEyesPivot';
+    eyes.name = 'eyes';
     const mouth = new THREE.Group();
-    mouth.name = 'MocchiMouthPivot';
+    mouth.name = 'mouth';
 
     root.add(body);
-    body.add(head, leftArm, rightArm);
-    head.add(eyes, mouth);
+    body.add(head, leftArm, rightArm, leftFoot, rightFoot);
+    head.add(headband, face);
+    face.add(eyes, mouth);
 
-    return { root, body, head, leftArm, rightArm, eyes, mouth };
+    return { root, body, head, leftArm, rightArm, leftFoot, rightFoot, headband, face, eyes, mouth };
   }
 
   function addArm(parent: THREE.Group, side: -1 | 1, material: THREE.Material): void {
-    const arm = mesh(new THREE.SphereGeometry(0.22, 16, 10), material);
+    const arm = tag(mesh(new THREE.SphereGeometry(0.22, 24, 14), material), side < 0 ? 'left-arm' : 'right-arm', {
+      embedDepth: 0.09
+    });
     arm.name = side < 0 ? 'Left stubby arm' : 'Right stubby arm';
-    arm.scale.set(0.65, 1.15, 0.55);
-    arm.position.set(side * 0.12, -0.22, 0);
+    arm.scale.set(0.7, 1.1, 0.58);
+    arm.position.set(side * 0.02, -0.13, 0.02);
+    arm.rotation.z = side * 0.08;
+    const attachmentBlend = mesh(new THREE.SphereGeometry(0.18, 18, 10), material);
+    attachmentBlend.name = side < 0 ? 'Left arm body blend' : 'Right arm body blend';
+    attachmentBlend.scale.set(0.58, 0.86, 0.46);
+    attachmentBlend.position.set(side * -0.03, -0.03, -0.03);
     parent.add(arm);
+    parent.add(attachmentBlend);
+  }
+
+  function addFoot(parent: THREE.Group, side: -1 | 1, material: THREE.Material): void {
+    const foot = tag(mesh(new THREE.SphereGeometry(0.2, 24, 12), material), side < 0 ? 'left-foot' : 'right-foot', {
+      embedDepth: 0.08
+    });
+    foot.name = side < 0 ? 'Left embedded oval foot' : 'Right embedded oval foot';
+    foot.scale.set(1.35, 0.42, 0.78);
+    foot.position.set(0, 0, 0.04);
+    parent.add(foot);
   }
 
   function addHeadband(
@@ -328,45 +338,61 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     aquaMaterial: THREE.Material,
     tealMaterial: THREE.Material
   ): void {
-    const band = mesh(new THREE.BoxGeometry(2.13, 0.2, 0.12, 8, 2, 1), coralMaterial);
-    band.position.set(0, 0.94, 0.78);
-    band.rotation.x = -0.08;
+    const band = tag(mesh(createCurvedBandGeometry(1.16, 0.78, 0.2, 0.055, -1.38, 1.38, 52), coralMaterial), 'headband-front-wrap');
+    band.name = 'Wrapped coral headband front';
+    band.position.y = 0.89;
     parent.add(band);
 
-    const leftBandSide = mesh(new THREE.BoxGeometry(0.33, 0.19, 0.1, 4, 1, 1), coralMaterial);
-    leftBandSide.position.set(-1.06, 0.9, 0.42);
-    leftBandSide.rotation.y = -0.92;
-    parent.add(leftBandSide);
+    const stitchTop = mesh(createCurvedCordGeometry(1.17, 0.79, -1.34, 1.34, 52, 0.012), coralMaterial);
+    stitchTop.name = 'Headband raised top seam';
+    stitchTop.position.y = 1.0;
+    parent.add(stitchTop);
 
-    const rightBandSide = mesh(new THREE.BoxGeometry(0.33, 0.19, 0.1, 4, 1, 1), coralMaterial);
-    rightBandSide.position.set(1.06, 0.9, 0.42);
-    rightBandSide.rotation.y = 0.92;
-    parent.add(rightBandSide);
+    const stitchBottom = mesh(createCurvedCordGeometry(1.17, 0.79, -1.34, 1.34, 52, 0.012), coralMaterial);
+    stitchBottom.name = 'Headband raised bottom seam';
+    stitchBottom.position.y = 0.78;
+    parent.add(stitchBottom);
 
-    const knot = mesh(new THREE.SphereGeometry(0.16, 14, 8), coralMaterial);
-    knot.scale.set(1, 0.75, 0.5);
-    knot.position.set(1.26, 0.87, 0.18);
+    const knot = tag(mesh(new THREE.SphereGeometry(0.16, 22, 12), coralMaterial), 'headband-rear-knot');
+    knot.name = 'Headband rear knot';
+    knot.scale.set(1.1, 0.75, 0.52);
+    knot.position.set(1.12, 0.84, -0.05);
+    knot.rotation.y = 0.42;
     parent.add(knot);
 
-    const tieA = mesh(new THREE.ConeGeometry(0.11, 0.42, 12), coralMaterial);
-    tieA.position.set(1.39, 0.7, 0.17);
-    tieA.rotation.set(0.55, 0.2, -0.72);
+    const tieA = tag(mesh(new THREE.CapsuleGeometry(0.055, 0.22, 8, 16), coralMaterial), 'headband-tail');
+    tieA.name = 'Headband lower short tail';
+    tieA.scale.set(0.8, 1, 0.42);
+    tieA.position.set(1.2, 0.64, -0.02);
+    tieA.rotation.set(0.2, 0.18, -0.68);
     parent.add(tieA);
 
-    const tieB = mesh(new THREE.ConeGeometry(0.1, 0.36, 12), coralMaterial);
-    tieB.position.set(1.4, 1.0, 0.15);
-    tieB.rotation.set(-0.55, 0.1, -0.84);
+    const tieB = tag(mesh(new THREE.CapsuleGeometry(0.052, 0.18, 8, 16), coralMaterial), 'headband-tail');
+    tieB.name = 'Headband upper short tail';
+    tieB.scale.set(0.78, 1, 0.42);
+    tieB.position.set(1.19, 0.97, -0.01);
+    tieB.rotation.set(-0.22, 0.18, -0.9);
     parent.add(tieB);
 
     const emblem = createEmblem(whiteMaterial, coralMaterial, yellowMaterial, aquaMaterial, tealMaterial);
-    emblem.position.set(0, 1.01, 0.88);
+    emblem.position.set(0, 0.91, 0.82);
+    emblem.rotation.x = -0.04;
     parent.add(emblem);
   }
 
-  function createEar(material: THREE.Material): THREE.Mesh {
-    const ear = mesh(new THREE.ConeGeometry(0.33, 0.58, 16, 1), material);
-    ear.scale.set(1, 0.82, 0.86);
-    return ear;
+  function createEarPivot(name: string, side: -1 | 1, material: THREE.Material): THREE.Group {
+    const pivot = new THREE.Group();
+    pivot.name = name;
+    pivot.position.set(side * 0.66, 1.08, -0.02);
+    pivot.rotation.set(0.04, side * -0.16, side * -0.26);
+
+    const ear = tag(mesh(createRoundedEarGeometry(), material), side < 0 ? 'left-ear' : 'right-ear');
+    ear.name = side < 0 ? 'Left rounded cat ear' : 'Right rounded cat ear';
+    ear.scale.set(0.24, 0.34, 0.22);
+    ear.position.y = 0.05;
+    pivot.add(ear);
+
+    return pivot;
   }
 
   function createEmblem(
@@ -378,33 +404,35 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   ): THREE.Group {
     const emblem = new THREE.Group();
     emblem.name = 'Three-pill Matcha emblem';
-    const plate = mesh(new THREE.BoxGeometry(0.52, 0.34, 0.05), whiteMaterial);
+    const plate = tag(mesh(createRoundedRectGeometry(0.47, 0.3, 0.045, 0.065), whiteMaterial), 'emblem-plate');
+    plate.name = 'White rounded emblem plate';
     emblem.add(plate);
 
     [coralMaterial, yellowMaterial, aquaMaterial].forEach((material, index) => {
-      const pill = mesh(createPillGeometry(0.15, 0.28, 0.035), material);
-      pill.position.set([-0.16, 0, 0.16][index], 0, 0.045);
+      const pill = tag(mesh(createPillGeometry(0.12, 0.23, 0.038), material), 'emblem-pill');
+      pill.name = ['Coral emblem pill', 'Sunshine emblem pill', 'Aqua emblem pill'][index];
+      pill.position.set([-0.125, 0, 0.125][index], 0, 0.045);
       emblem.add(pill);
     });
 
     const dotLeft = mesh(new THREE.SphereGeometry(0.02, 8, 6), tealMaterial);
-    dotLeft.position.set(-0.18, 0.07, 0.07);
+    dotLeft.position.set(-0.15, 0.06, 0.07);
     emblem.add(dotLeft);
 
     const dotRight = dotLeft.clone();
-    dotRight.position.x = 0.18;
+    dotRight.position.x = 0.15;
     emblem.add(dotRight);
 
     return emblem;
   }
 
   function createCatMouth(material: THREE.Material): THREE.Group {
-    const mouth = new THREE.Group();
+    const mouth = tag(new THREE.Group(), 'w-mouth');
     mouth.add(
       createMouthCurve(
         [
-          new THREE.Vector3(-0.16, 0.05, 0),
-          new THREE.Vector3(-0.09, -0.05, 0.02),
+          new THREE.Vector3(-0.13, 0.045, 0),
+          new THREE.Vector3(-0.075, -0.045, 0.02),
           new THREE.Vector3(0, 0.02, 0)
         ],
         material
@@ -412,8 +440,8 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
       createMouthCurve(
         [
           new THREE.Vector3(0, 0.02, 0),
-          new THREE.Vector3(0.09, -0.05, 0.02),
-          new THREE.Vector3(0.16, 0.05, 0)
+          new THREE.Vector3(0.075, -0.045, 0.02),
+          new THREE.Vector3(0.13, 0.045, 0)
         ],
         material
       )
@@ -457,9 +485,155 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
     return new THREE.ExtrudeGeometry(shape, {
       depth,
-      bevelEnabled: false,
-      curveSegments: 8
+      bevelEnabled: true,
+      bevelSegments: 3,
+      bevelSize: 0.008,
+      bevelThickness: 0.006,
+      curveSegments: 10
     });
+  }
+
+  function createRoundedRectGeometry(width: number, height: number, depth: number, radius: number): THREE.ExtrudeGeometry {
+    const x = width / 2;
+    const y = height / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-x + radius, -y);
+    shape.lineTo(x - radius, -y);
+    shape.quadraticCurveTo(x, -y, x, -y + radius);
+    shape.lineTo(x, y - radius);
+    shape.quadraticCurveTo(x, y, x - radius, y);
+    shape.lineTo(-x + radius, y);
+    shape.quadraticCurveTo(-x, y, -x, y - radius);
+    shape.lineTo(-x, -y + radius);
+    shape.quadraticCurveTo(-x, -y, -x + radius, -y);
+
+    return new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      bevelSize: 0.012,
+      bevelThickness: 0.008,
+      curveSegments: 10
+    });
+  }
+
+  function createSoftBodyGeometry(): THREE.SphereGeometry {
+    const geometry = new THREE.SphereGeometry(1, 64, 34);
+    const position = geometry.attributes.position;
+
+    for (let index = 0; index < position.count; index += 1) {
+      const x = position.getX(index);
+      const y = position.getY(index);
+      const z = position.getZ(index);
+      const lowerRound = smoothstep(-0.18, -0.78, y) * 0.075;
+      const baseSettle = smoothstep(-0.72, -1, y) * 0.12;
+      const crownTuck = smoothstep(0.64, 1, y) * 0.035;
+
+      position.setXYZ(index, x * (1 + lowerRound - crownTuck), y + baseSettle, z * (1 + lowerRound * 0.55));
+    }
+
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createRoundedEarGeometry(): THREE.SphereGeometry {
+    const geometry = new THREE.SphereGeometry(1, 32, 18);
+    const position = geometry.attributes.position;
+
+    for (let index = 0; index < position.count; index += 1) {
+      const x = position.getX(index);
+      const y = position.getY(index);
+      const z = position.getZ(index);
+      const vertical = (y + 1) / 2;
+      const roundedTaper = 1 - smoothstep(0.2, 1, vertical) * 0.62;
+      const baseFullness = 1 + smoothstep(0.18, 0, vertical) * 0.12;
+
+      position.setXYZ(index, x * roundedTaper * baseFullness, y * 0.92 + vertical * vertical * 0.12, z * (0.78 + (1 - vertical) * 0.22));
+    }
+
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createCurvedBandGeometry(
+    radiusX: number,
+    radiusZ: number,
+    height: number,
+    thickness: number,
+    thetaStart: number,
+    thetaEnd: number,
+    segments: number
+  ): THREE.BufferGeometry {
+    const vertices: number[] = [];
+    const indices: number[] = [];
+
+    for (let index = 0; index <= segments; index += 1) {
+      const theta = thetaStart + ((thetaEnd - thetaStart) * index) / segments;
+      const sin = Math.sin(theta);
+      const cos = Math.cos(theta);
+
+      vertices.push(
+        sin * radiusX,
+        -height / 2,
+        cos * radiusZ,
+        sin * radiusX,
+        height / 2,
+        cos * radiusZ,
+        sin * (radiusX - thickness),
+        -height / 2,
+        cos * (radiusZ - thickness),
+        sin * (radiusX - thickness),
+        height / 2,
+        cos * (radiusZ - thickness)
+      );
+    }
+
+    for (let index = 0; index < segments; index += 1) {
+      const a = index * 4;
+      const b = a + 4;
+      indices.push(a, b + 1, a + 1, a, b, b + 1);
+      indices.push(a + 2, a + 3, b + 3, a + 2, b + 3, b + 2);
+      indices.push(a + 1, b + 1, b + 3, a + 1, b + 3, a + 3);
+      indices.push(a, a + 2, b + 2, a, b + 2, b);
+    }
+
+    const end = segments * 4;
+    indices.push(0, 3, 2, 0, 1, 3);
+    indices.push(end, end + 2, end + 3, end, end + 3, end + 1);
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createCurvedCordGeometry(
+    radiusX: number,
+    radiusZ: number,
+    thetaStart: number,
+    thetaEnd: number,
+    segments: number,
+    radius: number
+  ): THREE.TubeGeometry {
+    const points: THREE.Vector3[] = [];
+
+    for (let index = 0; index <= segments; index += 1) {
+      const theta = thetaStart + ((thetaEnd - thetaStart) * index) / segments;
+      points.push(new THREE.Vector3(Math.sin(theta) * radiusX, 0, Math.cos(theta) * radiusZ));
+    }
+
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), segments, radius, 8, false);
+  }
+
+  function smoothstep(edge0: number, edge1: number, value: number): number {
+    const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function tag<T extends THREE.Object3D>(object: T, contractRole: string, extra: Record<string, unknown> = {}): T {
+    object.userData = { ...object.userData, ...extra, contractRole };
+    return object;
   }
 
   function track<T extends { dispose: () => void }>(item: T): T {
