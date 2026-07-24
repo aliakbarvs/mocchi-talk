@@ -382,7 +382,7 @@ function setupScene(): void {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-  camera.position.set(0, 0.95, 5.2);
+  camera.position.set(0, 0.55, 5.8);
 
   const ambientLight = new THREE.HemisphereLight(0xffffff, 0xc7eee8, 2.6);
   const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
@@ -395,7 +395,7 @@ function setupScene(): void {
   scene.add(landscape);
 
   character = createMocchiCharacter(palette);
-  character.group.position.set(0, -0.45, 0);
+  character.group.position.set(0, -0.2, 0);
   scene.add(character.group);
   character.setMood(currentMood);
   character.setSpeaking(speakingActive);

@@ -87,22 +87,23 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     })
   );
   const whiteMaterial = track(new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.82, metalness: 0 }));
+  const bodyMaterial = track(new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.86, metalness: 0 }));
   const mouthWarmMaterial = track(new THREE.MeshStandardMaterial({ color: '#ff806b', roughness: 0.76, metalness: 0 }));
 
   const rig = createRig();
   group.add(rig.root);
 
-  const bodyMesh = tag(mesh(createSoftBodyGeometry(), creamMaterial), 'body-shell');
+  const bodyMesh = tag(mesh(createSoftBodyGeometry(), bodyMaterial), 'body-shell');
   bodyMesh.name = 'Soft oblate cream mochi body';
   bodyMesh.scale.set(1.18, 0.97, 0.8);
   bodyMesh.position.y = 0.34;
   rig.body.add(bodyMesh);
 
-  addFoot(rig.leftFoot, -1, creamMaterial);
-  addFoot(rig.rightFoot, 1, creamMaterial);
+  addFoot(rig.leftFoot, -1, bodyMaterial);
+  addFoot(rig.rightFoot, 1, bodyMaterial);
 
-  addArm(rig.leftArm, -1, creamMaterial);
-  addArm(rig.rightArm, 1, creamMaterial);
+  addArm(rig.leftArm, -1, bodyMaterial);
+  addArm(rig.rightArm, 1, bodyMaterial);
 
   const leftEarPivot = createEarPivot('leftEar', -1, creamMaterial);
   const rightEarPivot = createEarPivot('rightEar', 1, creamMaterial);
