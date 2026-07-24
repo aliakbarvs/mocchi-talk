@@ -31,13 +31,17 @@ The public factory methods are the replacement seam for a future GLB rig. A GLB-
 
 ## Narration Assets
 
-Mocchi narration is played from offline WAV assets at `public/audio/mocchi/<clip>.wav`, which Vite serves as `/audio/mocchi/<clip>.wav`. The app does not call a runtime TTS model, browser speech synthesis, or a network voice service.
+Mocchi narration is played from offline WAV assets at `public/audio/mocchi/<clip>.wav`, which Vite serves relative to the app route. The app does not call a runtime TTS model, browser speech synthesis, or a network voice service.
 
 The local generation helper is `scripts/generate_pip_audio.py`. It uses Qwen3-TTS VoiceDesign with the manifest voice label `Pip-style original VoiceDesign`; this is an original designed voice style, not an exact voice identity, clone, or impersonation.
 
 ```bash
 python3 scripts/generate_pip_audio.py --output public/audio/mocchi
 ```
+
+## Subpath deployment
+
+The Vite build uses relative URLs, so the same `dist/` output works locally and when served at `/mocchi/` under `matcha-i.com`. Deploy the contents of `dist/` to the `/var/www/matcha-i.com/mocchi/` subdirectory; the app has no backend or account dependency.
 
 ## Visual Note
 

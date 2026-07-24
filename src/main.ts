@@ -182,11 +182,16 @@ function setupNarrationAudio(): void {
   ];
 
   for (const clipId of clipIds) {
-    const audio = new Audio(`/audio/mocchi/${clipId}.wav`);
+    const audio = new Audio(narrationAssetUrl(clipId));
     audio.preload = 'auto';
     audio.load();
     narrationAudio.set(clipId, audio);
   }
+}
+
+function narrationAssetUrl(clipId: AudioClipId): string {
+  const baseUrl = new URL(import.meta.env.BASE_URL, document.baseURI);
+  return new URL(`audio/mocchi/${clipId}.wav`, baseUrl).href;
 }
 
 function setupControls(): void {
@@ -295,7 +300,7 @@ function speak(prompt: Prompt): void {
   }
 
   const run = (speechRun += 1);
-  const audio = narrationAudio.get(prompt.audioClip) ?? new Audio(`/audio/mocchi/${prompt.audioClip}.wav`);
+  const audio = narrationAudio.get(prompt.audioClip) ?? new Audio(narrationAssetUrl(prompt.audioClip));
   speechAudio?.pause();
   speechAudio = audio;
   clearTimeout(speechStateTimer);
