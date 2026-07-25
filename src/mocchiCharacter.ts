@@ -15,6 +15,8 @@ export type MocchiCharacter = {
   setMood: (mood: MocchiMood) => void;
   triggerTap: () => void;
   setSpeaking: (active: boolean) => void;
+  setGrowthTier: (tier: number) => void;
+  setSleeping: (active: boolean) => void;
   update: (delta: number, elapsed: number) => void;
   dispose: () => void;
 };
@@ -28,6 +30,8 @@ type Rig = {
   leftFoot: THREE.Group;
   rightFoot: THREE.Group;
   headband: THREE.Group;
+  emblem: THREE.Group;
+  growthLeaf: THREE.Group;
   face: THREE.Group;
   eyes: THREE.Group;
   mouth: THREE.Group;
@@ -109,7 +113,9 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   const rightEarPivot = createEarPivot('rightEar', 1, creamMaterial);
   rig.head.add(leftEarPivot, rightEarPivot);
 
-  addHeadband(rig.headband, coralMaterial, whiteMaterial, yellowMaterial, aquaMaterial, tealMaterial);
+  addHeadband(rig.headband, rig.emblem, coralMaterial, whiteMaterial, yellowMaterial, aquaMaterial, tealMaterial);
+  addGrowthLeaf(rig.growthLeaf, aquaMaterial, tealMaterial);
+  rig.head.add(rig.growthLeaf);
 
   const leftEye = tag(mesh(new THREE.SphereGeometry(0.085, 24, 16), tealMaterial), 'eye');
   leftEye.scale.copy(BASE_EYE_SCALE);
@@ -175,15 +181,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   let mood: MocchiMood = 'neutral';
   let speaking = false;
+  let sleeping = false;
+  let growthTier = 0;
   let tapElapsed = TAP_DURATION;
   let disposed = false;
   applyMouth(faceParts, mood, speaking);
+  applyGrowthTier();
 
   return {
     group,
     setMood,
     triggerTap,
     setSpeaking,
+    setGrowthTier,
+    setSleeping,
     update,
     dispose
   };
@@ -198,7 +209,21 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   }
 
   function setSpeaking(active: boolean): void {
-    speaking = active;
+    speaking = sleeping ? false : active;
+    applyMouth(faceParts, mood, speaking);
+  }
+
+  function setGrowthTier(nextTier: number): void {
+    const finiteTier = Number.isFinite(nextTier) ? nextTier : 0;
+    growthTier = Math.max(0, Math.min(3, Math.floor(finiteTier)));
+    applyGrowthTier();
+  }
+
+  function setSleeping(active: boolean): void {
+    sleeping = active;
+    if (sleeping) {
+      speaking = false;
+    }
     applyMouth(faceParts, mood, speaking);
   }
 
@@ -228,6 +253,21 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
     if (mood === 'shy' || mood === 'thinking') {
       pose.rootRotation.z += Math.sin(phase * Math.PI * 2) * (mood === 'shy' ? 0.045 : 0.025);
+    }
+
+    if (sleeping) {
+      pose.rootRotation.z = -0.08;
+      pose.rootRotation.y *= 0.3;
+      pose.bodyScale.set(0.98 + (breathe - 1) * 0.35, 0.92 + (breathe - 1) * 0.7, 1.02);
+      pose.headRotation.set(0.12, 0, -0.08);
+      pose.leftArmRotation.set(0.04, 0, -0.44);
+      pose.rightArmRotation.set(0.04, 0, 0.44);
+      pose.leftEyeScale.set(1.18, 0.12, 0.2);
+      pose.rightEyeScale.set(1.18, 0.12, 0.2);
+      pose.leftBrowRotation.z = -0.48;
+      pose.rightBrowRotation.z = 0.48;
+      pose.blushScale = 1.08;
+      pose.blushOpacity = 0.78;
     }
 
     const tap = tapEnvelope(delta);
@@ -262,11 +302,29 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
       const chatter = 0.2 + (Math.sin(elapsed * 21) * 0.5 + 0.5) * 0.9;
       faceParts.openMouth.scale.set(0.82, chatter, 0.13);
     }
+
+    const emblemTargetScale = growthTier >= 2 ? 1 + Math.sin(elapsed * 1.7) * 0.025 : 0.72;
+    dampVector(rig.emblem.scale, new THREE.Vector3(emblemTargetScale, emblemTargetScale, emblemTargetScale), delta, 7);
+    const leafBob = growthTier >= 3 ? Math.sin(elapsed * 1.9) * 0.018 : 0;
+    dampVector(rig.growthLeaf.position, new THREE.Vector3(-0.42, 1.13 + leafBob, 0.5), delta, 7);
   }
 
   function dispose(): void {
     disposed = true;
     disposables.forEach((item) => item.dispose());
+  }
+
+  function applyGrowthTier(): void {
+    rig.headband.visible = growthTier >= 1;
+    setTreeVisible(rig.emblem, growthTier >= 2);
+    setTreeVisible(rig.growthLeaf, growthTier >= 3);
+  }
+
+  function setTreeVisible(root: THREE.Object3D, visible: boolean): void {
+    root.visible = visible;
+    root.traverse((child) => {
+      child.visible = visible;
+    });
   }
 
   function createRig(): Rig {
@@ -290,6 +348,12 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     rightFoot.position.set(0.42, -0.5, 0.35);
     const headband = new THREE.Group();
     headband.name = 'headband';
+    const emblem = new THREE.Group();
+    emblem.name = 'Three-pill Matcha emblem';
+    const growthLeaf = new THREE.Group();
+    growthLeaf.name = 'growthLeaf';
+    growthLeaf.position.set(-0.42, 1.13, 0.5);
+    growthLeaf.rotation.set(0.2, 0, -0.55);
     const face = new THREE.Group();
     face.name = 'face';
     const eyes = new THREE.Group();
@@ -302,7 +366,7 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     head.add(headband, face);
     face.add(eyes, mouth);
 
-    return { root, body, head, leftArm, rightArm, leftFoot, rightFoot, headband, face, eyes, mouth };
+    return { root, body, head, leftArm, rightArm, leftFoot, rightFoot, headband, emblem, growthLeaf, face, eyes, mouth };
   }
 
   function addArm(parent: THREE.Group, side: -1 | 1, material: THREE.Material): void {
@@ -333,6 +397,7 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   function addHeadband(
     parent: THREE.Group,
+    emblem: THREE.Group,
     coralMaterial: THREE.Material,
     whiteMaterial: THREE.Material,
     yellowMaterial: THREE.Material,
@@ -375,10 +440,25 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     tieB.rotation.set(-0.22, 0.18, -0.9);
     parent.add(tieB);
 
-    const emblem = createEmblem(whiteMaterial, coralMaterial, yellowMaterial, aquaMaterial, tealMaterial);
+    populateEmblem(emblem, whiteMaterial, coralMaterial, yellowMaterial, aquaMaterial, tealMaterial);
     emblem.position.set(0, 0.91, 0.82);
     emblem.rotation.x = -0.04;
     parent.add(emblem);
+  }
+
+  function addGrowthLeaf(parent: THREE.Group, leafMaterial: THREE.Material, stemMaterial: THREE.Material): void {
+    const stem = mesh(new THREE.CapsuleGeometry(0.018, 0.18, 5, 10), stemMaterial);
+    stem.name = 'Growth leaf stem';
+    stem.position.set(0, -0.08, 0);
+    stem.rotation.z = -0.34;
+    parent.add(stem);
+
+    const leaf = tag(mesh(new THREE.SphereGeometry(0.13, 24, 12), leafMaterial), 'growth-leaf');
+    leaf.name = 'Growth leaf accessory';
+    leaf.scale.set(0.62, 1.25, 0.16);
+    leaf.position.set(0.04, 0.04, 0);
+    leaf.rotation.set(0.08, 0, -0.6);
+    parent.add(leaf);
   }
 
   function createEarPivot(name: string, side: -1 | 1, material: THREE.Material): THREE.Group {
@@ -396,15 +476,14 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     return pivot;
   }
 
-  function createEmblem(
+  function populateEmblem(
+    emblem: THREE.Group,
     whiteMaterial: THREE.Material,
     coralMaterial: THREE.Material,
     yellowMaterial: THREE.Material,
     aquaMaterial: THREE.Material,
     tealMaterial: THREE.Material
-  ): THREE.Group {
-    const emblem = new THREE.Group();
-    emblem.name = 'Three-pill Matcha emblem';
+  ): void {
     const plate = tag(mesh(createRoundedRectGeometry(0.47, 0.3, 0.045, 0.065), whiteMaterial), 'emblem-plate');
     plate.name = 'White rounded emblem plate';
     emblem.add(plate);
@@ -423,8 +502,6 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     const dotRight = dotLeft.clone();
     dotRight.position.x = 0.15;
     emblem.add(dotRight);
-
-    return emblem;
   }
 
   function createCatMouth(material: THREE.Material): THREE.Group {

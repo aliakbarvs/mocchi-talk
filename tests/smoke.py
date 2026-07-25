@@ -174,6 +174,9 @@ HTMLMediaElement.prototype.pause = function() {};
         expect(animation_state).to_contain_text("speaking false")
         expect(page.get_by_test_id("session-count")).to_contain_text("Session")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Tap Mocchi")
+        expect(page.get_by_test_id("word-jar-count")).to_contain_text("0 words")
+        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 0")
+        expect(page.get_by_test_id("sleep-toggle")).to_have_attribute("aria-pressed", "false")
 
         prompt = page.get_by_test_id("prompt-say-hello")
         box = prompt.bounding_box()
@@ -212,6 +215,29 @@ HTMLMediaElement.prototype.pause = function() {};
           "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/practice-complete.wav'))"
         )
         expect(animation_state).to_contain_text("speaking false")
+        expect(page.get_by_test_id("word-jar-count")).to_contain_text("1 word")
+        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 0")
+
+        page.get_by_test_id("prompt-teach-word").click()
+        save_word = page.get_by_test_id("save-word")
+        expect(save_word).to_be_visible()
+        for expected_count in range(2, 6):
+          save_word.click()
+          expect(page.get_by_test_id("word-jar-count")).to_contain_text(
+            f"{expected_count} {'word' if expected_count == 1 else 'words'}"
+          )
+          if expected_count < 5:
+            page.get_by_test_id("prompt-teach-word").click()
+        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 1")
+
+        sleep_toggle = page.get_by_test_id("sleep-toggle")
+        sleep_toggle.click()
+        expect(sleep_toggle).to_have_attribute("aria-pressed", "true")
+        expect(page.get_by_test_id("mocchi-animation-state")).to_contain_text("sleeping true")
+        expect(page.locator(".scene-panel")).to_have_attribute("data-sleeping", "true")
+        sleep_toggle.click()
+        expect(sleep_toggle).to_have_attribute("aria-pressed", "false")
+        expect(page.get_by_test_id("mocchi-animation-state")).to_contain_text("sleeping false")
 
       finally:
         stop_dist_server(server)

@@ -16,6 +16,7 @@
         <section class="scene-panel" aria-label="Mocchi play scene">
           <div class="sky-shape sky-shape-a" aria-hidden="true"></div>
           <div class="sky-shape sky-shape-b" aria-hidden="true"></div>
+          <div id="brush-shine" class="brush-shine" aria-hidden="true"></div>
           <canvas id="scene-canvas" aria-label="3D Mocchi character scene"></canvas>
           <div id="webgl-fallback" class="webgl-fallback" role="status" hidden>
             Mocchi needs WebGL for 3D. You can still use the prompts and speech bubble.
@@ -32,6 +33,16 @@
           ></button>
           <aside id="speech-bubble" class="speech-bubble" aria-live="polite" data-testid="speech-bubble">
             <p id="speech-text">Tap Mocchi or choose a prompt.</p>
+            <button
+              id="save-word-button"
+              class="save-word-button"
+              type="button"
+              data-testid="save-word"
+              aria-label="Save word to jar"
+              hidden
+            >
+              Save word
+            </button>
           </aside>
           <div id="onboarding-hint" class="onboarding-hint">
             Tap Mocchi for a friendly reaction. Session count is saved only in this browser.
@@ -40,6 +51,25 @@
         </section>
 
         <section class="bottom-dock" aria-label="Mocchi controls">
+          <div class="pet-row" aria-label="Local pet layer">
+            <div class="word-jar" aria-label="Word jar">
+              <div class="word-jar-glass" aria-hidden="true">
+                <span id="word-jar-fill" class="word-jar-fill"></span>
+              </div>
+              <span id="word-jar-count" class="word-jar-count" data-testid="word-jar-count">0 words</span>
+            </div>
+            <span id="growth-tier" class="growth-tier" data-testid="growth-tier" data-tier="0">Tier 0</span>
+            <button
+              id="sleep-toggle"
+              class="icon-button sleep-toggle"
+              type="button"
+              data-testid="sleep-toggle"
+              aria-label="Start lullaby sleep"
+              aria-pressed="false"
+            >
+              <span aria-hidden="true">Sleep</span>
+            </button>
+          </div>
           <div class="status-row">
             <span class="session-pill" data-testid="session-count" aria-label="Local session count">Session 1</span>
             <button

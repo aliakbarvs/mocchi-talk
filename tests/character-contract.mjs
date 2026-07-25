@@ -35,7 +35,7 @@ const character = createMocchiCharacter(palette);
 
 try {
   assert.equal(character.group.name, 'MocchiCharacter');
-  for (const method of ['setMood', 'triggerTap', 'setSpeaking', 'update', 'dispose']) {
+  for (const method of ['setMood', 'triggerTap', 'setSpeaking', 'setGrowthTier', 'setSleeping', 'update', 'dispose']) {
     assert.equal(typeof character[method], 'function', `${method} must stay on the public character API.`);
   }
 
@@ -73,6 +73,19 @@ try {
   assert.ok(findRole(headband, 'headband-rear-knot'), 'Headband needs a readable rear/right knot.');
   assert.equal(findAllRole(headband, 'emblem-pill').length, 3, 'Emblem needs exactly three colored pills.');
   assert.ok(findRole(headband, 'emblem-plate'), 'Emblem needs a white backing plate.');
+  assert.ok(findRole(character.group, 'growth-leaf'), 'Growth tier 3 needs a leaf accessory mesh.');
+
+  character.setGrowthTier(0);
+  assert.equal(headband.visible, false, 'Tier 0 should render plain mochi without the growth headband.');
+  assert.equal(findRole(headband, 'emblem-plate').visible, false, 'Tier 0 should hide the growth emblem.');
+  assert.equal(findRole(character.group, 'growth-leaf').visible, false, 'Tier 0 should hide the leaf accessory.');
+  character.setGrowthTier(1);
+  assert.equal(headband.visible, true, 'Tier 1 should reveal the headband.');
+  assert.equal(findRole(headband, 'emblem-plate').visible, false, 'Tier 1 should keep the emblem quiet.');
+  character.setGrowthTier(2);
+  assert.equal(findRole(headband, 'emblem-plate').visible, true, 'Tier 2 should reveal the emblem.');
+  character.setGrowthTier(3);
+  assert.equal(findRole(character.group, 'growth-leaf').visible, true, 'Tier 3 should reveal the leaf accessory.');
 
   assert.equal(findAllRole(character.group, 'eye').length, 2, 'Mocchi needs two bead eyes.');
   assert.equal(findAllRole(character.group, 'brow').length, 2, 'Mocchi needs two expressive brows.');
