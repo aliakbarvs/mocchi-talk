@@ -6,85 +6,85 @@
   "instruction": "Distinctly original young-adult female comic-adventure heroine. Bold, cheeky, confident and theatrical, with punchy rhythm, expressive emphasis, quick reactions and fearless playful attitude. Clear natural English, not overly high-pitched. Do not imitate or resemble any existing actor, anime character, celebrity, or copyrighted voice. Do not sound like a child.",
   "clips": {
     "hello": {
-      "text": "Hi hi! I'm Mocchi. Let's learn softly today.",
+      "text": "Hi hi! I'm Motchi. Let's learn softly today.",
       "path": "/audio/mocchi/hello.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 4.16,
-      "generation_seconds": 43.343,
-      "realtime_factor": 10.419
+      "duration_seconds": 3.76,
+      "generation_seconds": 33.858,
+      "realtime_factor": 9.005
     },
     "feel": {
       "text": "I feel warm and ready. How is your heart today?",
       "path": "/audio/mocchi/feel.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 3.6,
-      "generation_seconds": 28.345,
-      "realtime_factor": 7.874
+      "duration_seconds": 3.28,
+      "generation_seconds": 32.985,
+      "realtime_factor": 10.056
     },
     "word": {
       "text": "Konnichiwa means hello in Japanese.",
       "path": "/audio/mocchi/word.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.72,
-      "generation_seconds": 21.241,
-      "realtime_factor": 7.809
+      "duration_seconds": 2.24,
+      "generation_seconds": 20.328,
+      "realtime_factor": 9.075
     },
     "joke": {
       "text": "Why did the tea leaf smile? It found its perfect matcha.",
       "path": "/audio/mocchi/joke.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 4.08,
-      "generation_seconds": 32.585,
-      "realtime_factor": 7.986
+      "duration_seconds": 3.84,
+      "generation_seconds": 37.117,
+      "realtime_factor": 9.666
     },
     "tap-hello": {
-      "text": "Squish! Mocchi is listening.",
+      "text": "Squish! Motchi is listening.",
       "path": "/audio/mocchi/tap-hello.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.32,
-      "generation_seconds": 39.196,
-      "realtime_factor": 16.895
+      "duration_seconds": 2.56,
+      "generation_seconds": 26.697,
+      "realtime_factor": 10.428
     },
     "tap-feel": {
       "text": "That tickles. Tell me a tiny thought.",
       "path": "/audio/mocchi/tap-feel.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.64,
-      "generation_seconds": 24.576,
-      "realtime_factor": 9.309
+      "duration_seconds": 2.88,
+      "generation_seconds": 40.055,
+      "realtime_factor": 13.908
     },
     "tap-word": {
       "text": "Small steps make big language magic.",
       "path": "/audio/mocchi/tap-word.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.88,
-      "generation_seconds": 22.533,
-      "realtime_factor": 7.824
+      "duration_seconds": 2.32,
+      "generation_seconds": 18.856,
+      "realtime_factor": 8.128
     },
     "tap-joke": {
       "text": "You're doing great, one word at a time.",
       "path": "/audio/mocchi/tap-joke.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.8,
-      "generation_seconds": 41.896,
-      "realtime_factor": 14.963
+      "duration_seconds": 2.48,
+      "generation_seconds": 33.067,
+      "realtime_factor": 13.334
     },
     "practice-complete": {
-      "text": "Mocchi heard a brave practice voice.",
+      "text": "Motchi heard a brave practice voice.",
       "path": "/audio/mocchi/practice-complete.wav",
       "sample_rate": 24000,
       "channels": 1,
-      "duration_seconds": 2.64,
-      "generation_seconds": 33.532,
-      "realtime_factor": 12.701
+      "duration_seconds": 2.8,
+      "generation_seconds": 22.034,
+      "realtime_factor": 7.869
     }
   }
 }

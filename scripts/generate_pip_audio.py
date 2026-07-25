@@ -20,15 +20,15 @@ PIP_INSTRUCT = (
 )
 
 CLIPS = {
-    "hello": "Hi hi! I'm Mocchi. Let's learn softly today.",
+    "hello": "Hi hi! I'm Motchi. Let's learn softly today.",
     "feel": "I feel warm and ready. How is your heart today?",
     "word": "Konnichiwa means hello in Japanese.",
     "joke": "Why did the tea leaf smile? It found its perfect matcha.",
-    "tap-hello": "Squish! Mocchi is listening.",
+    "tap-hello": "Squish! Motchi is listening.",
     "tap-feel": "That tickles. Tell me a tiny thought.",
     "tap-word": "Small steps make big language magic.",
     "tap-joke": "You're doing great, one word at a time.",
-    "practice-complete": "Mocchi heard a brave practice voice.",
+    "practice-complete": "Motchi heard a brave practice voice.",
 }
 
 
