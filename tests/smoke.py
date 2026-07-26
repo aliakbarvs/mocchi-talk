@@ -168,19 +168,39 @@ HTMLMediaElement.prototype.pause = function() {};
 """)
         page.goto(index_url)
 
+        page.evaluate("""
+localStorage.setItem('mocchi-talk.word-jar', JSON.stringify([
+  { word: 'konnichiwa', addedAt: '2026-07-25T00:00:00.000Z' }
+]));
+localStorage.setItem('mocchi-talk.has-visited', 'true');
+""")
+        page.goto(index_url)
+
         expect(page.get_by_test_id("mocchi")).to_be_visible()
         animation_state = page.get_by_test_id("mocchi-animation-state")
-        expect(animation_state).to_contain_text("mood neutral")
+        expect(animation_state).to_contain_text("mood happy")
         expect(animation_state).to_contain_text("speaking false")
+        expect(animation_state).to_contain_text("intro done")
         expect(page.get_by_test_id("session-count")).to_contain_text("Session")
-        expect(page.get_by_test_id("speech-bubble")).to_contain_text("Tap Mocchi")
-        expect(page.get_by_test_id("word-jar-count")).to_contain_text("0 words")
-        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 0")
-        expect(page.get_by_test_id("sleep-toggle")).to_have_attribute("aria-pressed", "false")
+        expect(page.get_by_test_id("speech-bubble")).to_contain_text("Last time we practiced konnichiwa")
+        assert page.get_by_test_id("word-jar-count").count() == 0, "Visible word jar counter must be removed."
+        assert page.get_by_test_id("growth-tier").count() == 0, "Visible growth tier must be removed."
+        assert page.get_by_test_id("save-word").count() == 0, "Manual save-word button must be removed."
+        assert page.get_by_test_id("sleep-toggle").count() == 0, "Sleep toggle must be removed."
+        assert page.locator(".brush-shine").count() == 0, "Brush shine affordance must be removed."
+
+        growth_level = page.get_by_test_id("growth-level")
+        initial_growth = float(growth_level.get_attribute("data-growth") or "0")
+        assert 0 < initial_growth < 1, "Growth level should be a continuous 0..1 value from stored words."
+        assert page.evaluate("() => window.__mocchiGrowth") == initial_growth
 
         prompt = page.get_by_test_id("prompt-say-hello")
         box = prompt.bounding_box()
         assert box is not None and box["height"] >= 48, "Prompt button must be at least 48px tall."
+
+        sound_box = page.get_by_test_id("sound-toggle").bounding_box()
+        assert sound_box is not None and sound_box["height"] >= 48 and sound_box["width"] >= 48, "Sound toggle tap target must be at least 48px."
+        assert sound_box["y"] < 80, "Sound toggle should live in the top corner, not the bottom dock."
 
         page.get_by_test_id("mocchi").click()
         expect(page.get_by_test_id("speech-bubble")).not_to_contain_text("Tap Mocchi")
@@ -194,6 +214,8 @@ HTMLMediaElement.prototype.pause = function() {};
         page.get_by_test_id("prompt-teach-word").click()
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Konnichiwa")
         expect(animation_state).to_contain_text("mood thinking")
+        prompt_growth = float(growth_level.get_attribute("data-growth") or "0")
+        assert prompt_growth > initial_growth, "Prompt answers must auto-record their word and increase growth."
         page.wait_for_function(
           "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/word.wav'))"
         )
@@ -215,29 +237,8 @@ HTMLMediaElement.prototype.pause = function() {};
           "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/practice-complete.wav'))"
         )
         expect(animation_state).to_contain_text("speaking false")
-        expect(page.get_by_test_id("word-jar-count")).to_contain_text("1 word")
-        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 0")
-
-        page.get_by_test_id("prompt-teach-word").click()
-        save_word = page.get_by_test_id("save-word")
-        expect(save_word).to_be_visible()
-        for expected_count in range(2, 6):
-          save_word.click()
-          expect(page.get_by_test_id("word-jar-count")).to_contain_text(
-            f"{expected_count} {'word' if expected_count == 1 else 'words'}"
-          )
-          if expected_count < 5:
-            page.get_by_test_id("prompt-teach-word").click()
-        expect(page.get_by_test_id("growth-tier")).to_contain_text("Tier 1")
-
-        sleep_toggle = page.get_by_test_id("sleep-toggle")
-        sleep_toggle.click()
-        expect(sleep_toggle).to_have_attribute("aria-pressed", "true")
-        expect(page.get_by_test_id("mocchi-animation-state")).to_contain_text("sleeping true")
-        expect(page.locator(".scene-panel")).to_have_attribute("data-sleeping", "true")
-        sleep_toggle.click()
-        expect(sleep_toggle).to_have_attribute("aria-pressed", "false")
-        expect(page.get_by_test_id("mocchi-animation-state")).to_contain_text("sleeping false")
+        practice_growth = float(growth_level.get_attribute("data-growth") or "0")
+        assert practice_growth > prompt_growth, "Practice completion must auto-record and increase growth."
 
       finally:
         stop_dist_server(server)

@@ -20,6 +20,12 @@ type WordJarEntry = {
   addedAt: string;
 };
 
+declare global {
+  interface Window {
+    __mocchiGrowth?: number;
+  }
+}
+
 const palette = {
   cream: '#F7F3E8',
   coral: '#FF6B57',
@@ -98,6 +104,8 @@ const sessionKey = 'mocchi-talk.session-count';
 const soundKey = 'mocchi-talk.sound-enabled';
 const hintKey = 'mocchi-talk.hint-seen';
 const wordJarKey = 'mocchi-talk.word-jar';
+const visitKey = 'mocchi-talk.has-visited';
+const maxStoredWords = 40;
 
 const canvas = mustGet<HTMLCanvasElement>('scene-canvas');
 const fallback = mustGet<HTMLElement>('webgl-fallback');
@@ -108,16 +116,11 @@ const animationStateLabel = mustGet<HTMLElement>('mocchi-animation-state');
 const toast = mustGet<HTMLElement>('feedback-toast');
 const soundToggle = mustGet<HTMLButtonElement>('sound-toggle');
 const recordButton = mustGet<HTMLButtonElement>('record-button');
-const saveWordButton = mustGet<HTMLButtonElement>('save-word-button');
-const sleepToggle = mustGet<HTMLButtonElement>('sleep-toggle');
-const scenePanel = document.querySelector<HTMLElement>('.scene-panel');
-const brushShine = mustGet<HTMLElement>('brush-shine');
-const wordJarCount = mustGet<HTMLElement>('word-jar-count');
-const wordJarFill = mustGet<HTMLElement>('word-jar-fill');
-const growthTierLabel = mustGet<HTMLElement>('growth-tier');
+const growthLevelStatus = mustGet<HTMLElement>('growth-level');
 const sessionCount = document.querySelector<HTMLElement>('[data-testid="session-count"]');
 const onboardingHint = mustGet<HTMLElement>('onboarding-hint');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const returningVisitor = readStorage(visitKey) === 'true';
 
 let currentMood: MocchiMood = 'neutral';
 let tapIndex = 0;
@@ -128,27 +131,24 @@ let speechStateTimer = 0;
 let speechRun = 0;
 let soundEnabled = loadSoundPreference();
 let wordJar = loadWordJar();
-let growthTier = growthTierForCount(wordJar.length);
+let growthLevel = growthLevelForCount(wordJar.length);
 let tapActive = false;
 let speakingActive = false;
-let sleepingActive = false;
+let openingActive = true;
 let speechAudio: HTMLAudioElement | undefined;
 const narrationAudio = new Map<AudioClipId, HTMLAudioElement>();
 let character: ReturnType<typeof createMocchiCharacter> | undefined;
-let pendingJarWord: string | undefined;
-let brushTimer = 0;
-let brushRestoreTimer = 0;
-let brushStart: { x: number; y: number } | undefined;
-let brushTriggeredForPointer = false;
 
 setupSessionCounter();
-setupPetLayer();
+setupOpeningMoment();
+setupGrowthLevel();
 setupSoundToggle();
 setupNarrationAudio();
 setupControls();
 setupScene();
 updateAnimationStateLabel();
-showToast('Welcome back to Mocchi Talk.');
+writeStorage(visitKey, 'true');
+showToast(returningVisitor ? 'Welcome back to Mocchi Talk.' : 'Mocchi is waking up.');
 
 function mustGet<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -192,7 +192,7 @@ function loadSoundPreference(): boolean {
 function updateSoundToggle(): void {
   soundToggle.setAttribute('aria-pressed', String(soundEnabled));
   soundToggle.setAttribute('aria-label', soundEnabled ? 'Turn sound off' : 'Turn sound on');
-  soundToggle.querySelector('span')!.textContent = soundEnabled ? 'Sound' : 'Muted';
+  soundToggle.querySelector('span')!.textContent = '♪';
 }
 
 function setupNarrationAudio(): void {
@@ -223,11 +223,6 @@ function narrationAssetUrl(clipId: AudioClipId): string {
 
 function setupControls(): void {
   mocchiButton.addEventListener('click', () => {
-    if (brushTriggeredForPointer) {
-      brushTriggeredForPointer = false;
-      return;
-    }
-
     const reaction = tapReactions[tapIndex % tapReactions.length];
     tapIndex += 1;
     triggerTap();
@@ -241,15 +236,6 @@ function setupControls(): void {
       const promptId = button.dataset.prompt as PromptId;
       applyResponse(prompts[promptId]);
     });
-  });
-
-  saveWordButton.addEventListener('click', () => {
-    if (!pendingJarWord) {
-      return;
-    }
-
-    addWordToJar(pendingJarWord);
-    hideSaveWord();
   });
 
   recordButton.addEventListener('click', () => {
@@ -268,7 +254,7 @@ function setupControls(): void {
     recordTimer = window.setTimeout(() => {
       recordButton.setAttribute('aria-pressed', 'false');
       recordButton.classList.remove('is-recording');
-      addWordToJar('practice voice');
+      recordWord('practice voice');
       applyResponse({
         id: 'feel',
         mood: 'happy',
@@ -278,38 +264,14 @@ function setupControls(): void {
       });
     }, reducedMotion ? 900 : 1800);
   });
-
-  mocchiButton.addEventListener('pointerdown', (event) => {
-    brushStart = { x: event.clientX, y: event.clientY };
-    brushTriggeredForPointer = false;
-  });
-
-  mocchiButton.addEventListener('pointermove', (event) => {
-    if (!brushStart || brushTriggeredForPointer) {
-      return;
-    }
-
-    const distance = Math.hypot(event.clientX - brushStart.x, event.clientY - brushStart.y);
-    if (distance > 42) {
-      brushTriggeredForPointer = true;
-      triggerBrush();
-    }
-  });
-
-  mocchiButton.addEventListener('pointercancel', () => {
-    brushStart = undefined;
-    brushTriggeredForPointer = false;
-  });
-
-  mocchiButton.addEventListener('pointerup', () => {
-    brushStart = undefined;
-  });
 }
 
 function applyResponse(prompt: Prompt): void {
   setMood(prompt.mood);
   updateSpeech(prompt.response);
-  updateSaveWord(prompt.jarWord);
+  if (prompt.jarWord) {
+    recordWord(prompt.jarWord);
+  }
   showToast(prompt.toast);
   speak(prompt);
 }
@@ -336,7 +298,7 @@ function triggerTap(): void {
 }
 
 function setSpeaking(active: boolean): void {
-  speakingActive = sleepingActive ? false : active;
+  speakingActive = active;
   character?.setSpeaking(speakingActive);
   updateAnimationStateLabel();
 }
@@ -344,7 +306,7 @@ function setSpeaking(active: boolean): void {
 function updateAnimationStateLabel(): void {
   animationStateLabel.textContent = `mood ${currentMood} speaking ${String(speakingActive)} tap ${
     tapActive ? 'active' : 'idle'
-  } sleeping ${String(sleepingActive)} tier ${growthTier}`;
+  } growth ${growthLevel.toFixed(3)} intro ${openingActive ? 'opening' : 'done'}`;
 }
 
 function updateSpeech(text: string): void {
@@ -418,14 +380,22 @@ function finishSpeech(run: number): void {
   setSpeaking(false);
 }
 
-function setupPetLayer(): void {
-  updateWordJarUI();
-  updateGrowthTier();
-  updateSleepState();
-
-  sleepToggle.addEventListener('click', () => {
-    setSleeping(!sleepingActive);
-  });
+function setupOpeningMoment(): void {
+  const lastWord = wordJar[0]?.word;
+  setMood('happy');
+  updateSpeech(
+    returningVisitor && lastWord
+      ? `Last time we practiced ${lastWord}.`
+      : 'Mocchi stretches awake. Tap Mocchi or choose a prompt.'
+  );
+  window.setTimeout(
+    () => {
+      openingActive = false;
+      setMood('happy');
+      updateAnimationStateLabel();
+    },
+    reducedMotion ? 1 : 900
+  );
 }
 
 function loadWordJar(): WordJarEntry[] {
@@ -442,7 +412,8 @@ function loadWordJar(): WordJarEntry[] {
 
     return parsed
       .map((entry) => normalizeWordJarEntry(entry))
-      .filter((entry): entry is WordJarEntry => entry !== undefined);
+      .filter((entry): entry is WordJarEntry => entry !== undefined)
+      .slice(0, maxStoredWords);
   } catch {
     return [];
   }
@@ -464,109 +435,34 @@ function normalizeWordJarEntry(entry: unknown): WordJarEntry | undefined {
   };
 }
 
-function addWordToJar(word: string): void {
+function recordWord(word: string): void {
   const trimmedWord = word.trim();
   if (!trimmedWord) {
     return;
   }
 
-  wordJar = [...wordJar, { word: trimmedWord.slice(0, 40), addedAt: new Date().toISOString() }];
+  wordJar = [{ word: trimmedWord.slice(0, 40), addedAt: new Date().toISOString() }, ...wordJar].slice(0, maxStoredWords);
   writeStorage(wordJarKey, JSON.stringify(wordJar));
-  updateWordJarUI();
-  updateGrowthTier();
-  showToast(`${trimmedWord} settled into the word jar.`);
+  updateGrowthLevel();
 }
 
-function updateWordJarUI(): void {
-  const count = wordJar.length;
-  const unit = count === 1 ? 'word' : 'words';
-  wordJarCount.textContent = `${count} ${unit}`;
-  wordJarCount.setAttribute('aria-label', `Word jar has ${count} ${unit}`);
-  wordJarFill.style.transform = `scaleY(${Math.min(count / 30, 1).toFixed(3)})`;
+function growthLevelForCount(count: number): number {
+  return Math.max(0, Math.min(1, count / maxStoredWords));
 }
 
-function growthTierForCount(count: number): number {
-  if (count >= 30) {
-    return 3;
-  }
-
-  if (count >= 15) {
-    return 2;
-  }
-
-  if (count >= 5) {
-    return 1;
-  }
-
-  return 0;
+function setupGrowthLevel(): void {
+  updateGrowthLevel();
 }
 
-function updateGrowthTier(): void {
-  growthTier = growthTierForCount(wordJar.length);
-  growthTierLabel.textContent = `Tier ${growthTier}`;
-  growthTierLabel.dataset.tier = String(growthTier);
-  growthTierLabel.setAttribute('aria-label', `Mocchi growth tier ${growthTier}`);
-  character?.setGrowthTier(growthTier);
+function updateGrowthLevel(): void {
+  growthLevel = growthLevelForCount(wordJar.length);
+  const formattedLevel = growthLevel.toFixed(3);
+  growthLevelStatus.textContent = `growth ${formattedLevel}`;
+  growthLevelStatus.dataset.growth = formattedLevel;
+  growthLevelStatus.setAttribute('aria-label', `Mocchi growth level ${formattedLevel}`);
+  window.__mocchiGrowth = Number(formattedLevel);
+  character?.setGrowthLevel(growthLevel);
   updateAnimationStateLabel();
-}
-
-function updateSaveWord(word: string | undefined): void {
-  if (!word) {
-    hideSaveWord();
-    return;
-  }
-
-  pendingJarWord = word;
-  saveWordButton.hidden = false;
-  saveWordButton.textContent = `Save "${word}"`;
-  saveWordButton.setAttribute('aria-label', `Save ${word} to word jar`);
-}
-
-function hideSaveWord(): void {
-  pendingJarWord = undefined;
-  saveWordButton.hidden = true;
-  saveWordButton.textContent = 'Save word';
-  saveWordButton.setAttribute('aria-label', 'Save word to jar');
-}
-
-function setSleeping(active: boolean): void {
-  sleepingActive = active;
-  if (sleepingActive) {
-    stopSpeech();
-  }
-
-  character?.setSleeping?.(sleepingActive);
-  updateSleepState();
-  updateAnimationStateLabel();
-  showToast(sleepingActive ? 'Soft lullaby on.' : 'Mocchi is awake.');
-}
-
-function updateSleepState(): void {
-  sleepToggle.setAttribute('aria-pressed', String(sleepingActive));
-  sleepToggle.setAttribute('aria-label', sleepingActive ? 'End lullaby sleep' : 'Start lullaby sleep');
-  sleepToggle.querySelector('span')!.textContent = sleepingActive ? 'Wake' : 'Sleep';
-  if (scenePanel) {
-    scenePanel.dataset.sleeping = String(sleepingActive);
-  }
-}
-
-function triggerBrush(): void {
-  clearTimeout(brushTimer);
-  clearTimeout(brushRestoreTimer);
-  const moodBeforeBrush = currentMood;
-  setMood(moodBeforeBrush === 'shy' ? 'happy' : 'shy');
-  triggerTap();
-  brushShine.classList.add('is-visible');
-  showToast('Mocchi enjoys the gentle brush.');
-
-  brushTimer = window.setTimeout(() => {
-    brushShine.classList.remove('is-visible');
-  }, reducedMotion ? 200 : 720);
-  brushRestoreTimer = window.setTimeout(() => {
-    if (!sleepingActive) {
-      setMood(moodBeforeBrush);
-    }
-  }, reducedMotion ? 300 : 1100);
 }
 
 function readStorage(key: string): string | null {
@@ -624,8 +520,7 @@ function setupScene(): void {
   scene.add(character.group);
   character.setMood(currentMood);
   character.setSpeaking(speakingActive);
-  character.setGrowthTier(growthTier);
-  character.setSleeping?.(sleepingActive);
+  character.setGrowthLevel(growthLevel);
 
   const clock = new THREE.Clock();
 

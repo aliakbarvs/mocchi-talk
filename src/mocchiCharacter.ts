@@ -15,7 +15,7 @@ export type MocchiCharacter = {
   setMood: (mood: MocchiMood) => void;
   triggerTap: () => void;
   setSpeaking: (active: boolean) => void;
-  setGrowthTier: (tier: number) => void;
+  setGrowthLevel: (value: number) => void;
   setSleeping: (active: boolean) => void;
   update: (delta: number, elapsed: number) => void;
   dispose: () => void;
@@ -32,6 +32,7 @@ type Rig = {
   headband: THREE.Group;
   emblem: THREE.Group;
   growthLeaf: THREE.Group;
+  growthBloom: THREE.Mesh;
   face: THREE.Group;
   eyes: THREE.Group;
   mouth: THREE.Group;
@@ -68,6 +69,7 @@ type MoodPose = {
 };
 
 const TAP_DURATION = 0.42;
+const WAKE_DURATION = 1.1;
 const BASE_BODY_SCALE = new THREE.Vector3(1, 1, 1);
 const BASE_EYE_SCALE = new THREE.Vector3(0.95, 1.28, 0.34);
 
@@ -93,6 +95,8 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   const whiteMaterial = track(new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.82, metalness: 0 }));
   const bodyMaterial = track(new THREE.MeshStandardMaterial({ color: '#fff8ec', roughness: 0.86, metalness: 0 }));
   const mouthWarmMaterial = track(new THREE.MeshStandardMaterial({ color: '#ff806b', roughness: 0.76, metalness: 0 }));
+  const bodyBaseColor = new THREE.Color('#fff8ec');
+  const bodyGrownColor = new THREE.Color('#ffe9dc');
 
   const rig = createRig();
   group.add(rig.root);
@@ -115,6 +119,8 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   addHeadband(rig.headband, rig.emblem, coralMaterial, whiteMaterial, yellowMaterial, aquaMaterial, tealMaterial);
   addGrowthLeaf(rig.growthLeaf, aquaMaterial, tealMaterial);
+  prepareFadableMaterials(rig.headband);
+  prepareFadableMaterials(rig.growthLeaf);
   rig.head.add(rig.growthLeaf);
 
   const leftEye = tag(mesh(new THREE.SphereGeometry(0.085, 24, 16), tealMaterial), 'eye');
@@ -181,19 +187,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
   let mood: MocchiMood = 'neutral';
   let speaking = false;
-  let sleeping = false;
-  let growthTier = 0;
+  let targetGrowthLevel = 0;
+  let renderedGrowthLevel = 0;
   let tapElapsed = TAP_DURATION;
+  let wakeElapsed = 0;
   let disposed = false;
   applyMouth(faceParts, mood, speaking);
-  applyGrowthTier();
+  applyGrowthVisuals(0, 0);
 
   return {
     group,
     setMood,
     triggerTap,
     setSpeaking,
-    setGrowthTier,
+    setGrowthLevel,
     setSleeping,
     update,
     dispose
@@ -209,21 +216,15 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
   }
 
   function setSpeaking(active: boolean): void {
-    speaking = sleeping ? false : active;
+    speaking = active;
     applyMouth(faceParts, mood, speaking);
   }
 
-  function setGrowthTier(nextTier: number): void {
-    const finiteTier = Number.isFinite(nextTier) ? nextTier : 0;
-    growthTier = Math.max(0, Math.min(3, Math.floor(finiteTier)));
-    applyGrowthTier();
+  function setGrowthLevel(value: number): void {
+    targetGrowthLevel = clamp01(Number.isFinite(value) ? value : 0);
   }
 
-  function setSleeping(active: boolean): void {
-    sleeping = active;
-    if (sleeping) {
-      speaking = false;
-    }
+  function setSleeping(_active: boolean): void {
     applyMouth(faceParts, mood, speaking);
   }
 
@@ -236,7 +237,9 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     const phase = moodPhase(mood, elapsed);
     const idleFloat = Math.sin(elapsed * 2.4) * 0.026;
     const idleYaw = Math.sin(elapsed * 0.72) * 0.085;
-    const breathe = 1 + Math.sin(elapsed * 2.05) * 0.018;
+    renderedGrowthLevel = damp(renderedGrowthLevel, targetGrowthLevel, delta, 4.8);
+    const breatheAmount = 0.018 + renderedGrowthLevel * 0.008;
+    const breathe = 1 + Math.sin(elapsed * 2.05) * breatheAmount;
 
     pose.rootRotation.y += idleYaw;
     pose.bodyScale.set(1 + (breathe - 1) * 0.58, breathe, 1 + (breathe - 1) * 0.36);
@@ -255,19 +258,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
       pose.rootRotation.z += Math.sin(phase * Math.PI * 2) * (mood === 'shy' ? 0.045 : 0.025);
     }
 
-    if (sleeping) {
-      pose.rootRotation.z = -0.08;
-      pose.rootRotation.y *= 0.3;
-      pose.bodyScale.set(0.98 + (breathe - 1) * 0.35, 0.92 + (breathe - 1) * 0.7, 1.02);
-      pose.headRotation.set(0.12, 0, -0.08);
-      pose.leftArmRotation.set(0.04, 0, -0.44);
-      pose.rightArmRotation.set(0.04, 0, 0.44);
-      pose.leftEyeScale.set(1.18, 0.12, 0.2);
-      pose.rightEyeScale.set(1.18, 0.12, 0.2);
-      pose.leftBrowRotation.z = -0.48;
-      pose.rightBrowRotation.z = 0.48;
-      pose.blushScale = 1.08;
-      pose.blushOpacity = 0.78;
+    if (wakeElapsed < WAKE_DURATION) {
+      const progress = Math.min(wakeElapsed / WAKE_DURATION, 1);
+      const eased = easeOutCubic(progress);
+      wakeElapsed += delta > 0 ? delta : WAKE_DURATION;
+      pose.rootRotation.x += (1 - eased) * 0.11;
+      pose.bodyScale.y += Math.sin(progress * Math.PI) * 0.08;
+      pose.leftArmRotation.z -= Math.sin(progress * Math.PI) * 0.24;
+      pose.rightArmRotation.z += Math.sin(progress * Math.PI) * 0.24;
+      if (progress < 0.62) {
+        const eyeOpen = smoothstep(0.08, 0.62, progress);
+        const openingEyeScale = new THREE.Vector3(1.1, 0.12 + eyeOpen * 1.16, 0.24);
+        pose.leftEyeScale.copy(openingEyeScale);
+        pose.rightEyeScale.copy(openingEyeScale);
+      }
     }
 
     const tap = tapEnvelope(delta);
@@ -303,9 +307,11 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
       faceParts.openMouth.scale.set(0.82, chatter, 0.13);
     }
 
-    const emblemTargetScale = growthTier >= 2 ? 1 + Math.sin(elapsed * 1.7) * 0.025 : 0.72;
+    applyGrowthVisuals(renderedGrowthLevel, elapsed);
+    const emblemFade = smoothstep(0.18, 0.82, renderedGrowthLevel);
+    const emblemTargetScale = 0.72 + emblemFade * 0.4 + Math.sin(elapsed * 1.7) * 0.025 * emblemFade;
     dampVector(rig.emblem.scale, new THREE.Vector3(emblemTargetScale, emblemTargetScale, emblemTargetScale), delta, 7);
-    const leafBob = growthTier >= 3 ? Math.sin(elapsed * 1.9) * 0.018 : 0;
+    const leafBob = smoothstep(0.64, 1, renderedGrowthLevel) * Math.sin(elapsed * 1.9) * 0.018;
     dampVector(rig.growthLeaf.position, new THREE.Vector3(-0.42, 1.13 + leafBob, 0.5), delta, 7);
   }
 
@@ -314,17 +320,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     disposables.forEach((item) => item.dispose());
   }
 
-  function applyGrowthTier(): void {
-    rig.headband.visible = growthTier >= 1;
-    setTreeVisible(rig.emblem, growthTier >= 2);
-    setTreeVisible(rig.growthLeaf, growthTier >= 3);
-  }
+  function applyGrowthVisuals(level: number, elapsed: number): void {
+    const headbandFade = smoothstep(0.12, 0.34, level);
+    const emblemFade = smoothstep(0.18, 0.82, level);
+    const leafFade = smoothstep(0.58, 1, level) * 0.72;
+    const bloomFade = smoothstep(0.2, 1, level);
 
-  function setTreeVisible(root: THREE.Object3D, visible: boolean): void {
-    root.visible = visible;
-    root.traverse((child) => {
-      child.visible = visible;
-    });
+    bodyMaterial.color.lerpColors(bodyBaseColor, bodyGrownColor, level * 0.78);
+    setOpacity(rig.headband, headbandFade);
+    setOpacity(rig.emblem, emblemFade);
+    setOpacity(rig.growthLeaf, leafFade);
+    setMeshOpacity(rig.growthBloom, bloomFade * 0.36);
+    const bloomPulse = 1 + Math.sin(elapsed * 1.6) * 0.035 * bloomFade;
+    const bloomScale = 0.35 + bloomFade * 1.38;
+    rig.growthBloom.scale.set(bloomScale * bloomPulse, bloomScale * bloomPulse, 1);
   }
 
   function createRig(): Rig {
@@ -354,6 +363,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     growthLeaf.name = 'growthLeaf';
     growthLeaf.position.set(-0.42, 1.13, 0.5);
     growthLeaf.rotation.set(0.2, 0, -0.55);
+    const growthBloom = tag(
+      mesh(
+        new THREE.CircleGeometry(0.33, 36),
+        new THREE.MeshBasicMaterial({
+          color: palette.sunshine,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false
+        })
+      ),
+      'growth-bloom'
+    );
+    growthBloom.name = 'Soft continuous growth bloom';
+    growthBloom.position.set(0, 0.92, 0.76);
     const face = new THREE.Group();
     face.name = 'face';
     const eyes = new THREE.Group();
@@ -363,10 +386,10 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
 
     root.add(body);
     body.add(head, leftArm, rightArm, leftFoot, rightFoot);
-    head.add(headband, face);
+    head.add(growthBloom, headband, face);
     face.add(eyes, mouth);
 
-    return { root, body, head, leftArm, rightArm, leftFoot, rightFoot, headband, emblem, growthLeaf, face, eyes, mouth };
+    return { root, body, head, leftArm, rightArm, leftFoot, rightFoot, headband, emblem, growthLeaf, growthBloom, face, eyes, mouth };
   }
 
   function addArm(parent: THREE.Group, side: -1 | 1, material: THREE.Material): void {
@@ -724,6 +747,40 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     return new THREE.Mesh(geometry, material);
   }
 
+  function prepareFadableMaterials(root: THREE.Object3D): void {
+    root.traverse((child) => {
+      if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) {
+        return;
+      }
+
+      const material = track(child.material.clone());
+      material.transparent = true;
+      material.opacity = 0;
+      child.material = material;
+    });
+  }
+
+  function setOpacity(root: THREE.Object3D, opacity: number): void {
+    root.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        setMeshOpacity(child, opacity);
+      }
+    });
+  }
+
+  function setMeshOpacity(mesh: THREE.Mesh, opacity: number): void {
+    if (Array.isArray(mesh.material)) {
+      mesh.material.forEach((material) => {
+        material.transparent = true;
+        material.opacity = opacity;
+      });
+      return;
+    }
+
+    mesh.material.transparent = true;
+    mesh.material.opacity = opacity;
+  }
+
   function tapEnvelope(delta: number): number {
     if (tapElapsed >= TAP_DURATION) {
       return 0;
@@ -849,4 +906,12 @@ function dampEuler(current: THREE.Euler, target: THREE.Euler, delta: number, spe
     damp(current.y, target.y, delta, speed),
     damp(current.z, target.z, delta, speed)
   );
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function easeOutCubic(value: number): number {
+  return 1 - (1 - value) ** 3;
 }
