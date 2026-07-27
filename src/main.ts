@@ -963,6 +963,7 @@ function setupScene(): void {
   character.setGrowthLevel(growthLevel);
 
   const clock = new THREE.Clock();
+  let reducedMotionClock = 0;
 
   const resize = () => {
     const { clientWidth, clientHeight } = canvas;
@@ -973,20 +974,18 @@ function setupScene(): void {
 
   const render = () => {
     resize();
-    // Reduced motion: snap to the correct resting pose/growth (delta=1 converges damped
-    // interpolation in one frame) but freeze elapsed so there is no perpetual oscillation
-    // (idle bob, breathing, bloom pulse). The character stays alive and state-correct, not frozen.
     const rawDelta = clock.getDelta();
+    reducedMotionClock += rawDelta;
     const delta = reducedMotion ? 1 : rawDelta;
-    const elapsed = reducedMotion ? 0 : clock.elapsedTime;
-    character?.update(delta, elapsed);
+    const elapsed = reducedMotion ? reducedMotionClock : clock.elapsedTime;
+    character?.update(delta, elapsed, reducedMotion);
     renderer.render(scene, camera);
     requestAnimationFrame(render);
   };
 
   captureSceneImage = () => {
     resize();
-    character?.update(reducedMotion ? 1 : 0, reducedMotion ? 0 : clock.elapsedTime);
+    character?.update(reducedMotion ? 1 : 0, reducedMotion ? reducedMotionClock : clock.elapsedTime, reducedMotion);
     renderer.render(scene, camera);
     return renderer.domElement.toDataURL('image/png');
   };

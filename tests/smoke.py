@@ -111,6 +111,56 @@ def stop_dist_server(server: subprocess.Popen[str]) -> None:
       server.wait()
 
 
+def reduced_motion_canvas_delta(page, wait_ms: int = 1200, tap: bool = False) -> int:
+    return int(page.evaluate(
+      """async ({ waitMs, tap }) => {
+        const source = document.getElementById('scene-canvas');
+        if (!(source instanceof HTMLCanvasElement)) {
+          throw new Error('Scene canvas is missing.');
+        }
+
+        const capture = async () => {
+          const image = new Image();
+          image.src = source.toDataURL('image/png');
+          await image.decode();
+          const copy = document.createElement('canvas');
+          copy.width = image.naturalWidth;
+          copy.height = image.naturalHeight;
+          const context = copy.getContext('2d', { willReadFrequently: true });
+          if (!context) {
+            throw new Error('Canvas 2D is unavailable.');
+          }
+          context.drawImage(image, 0, 0);
+          return context.getImageData(0, 0, copy.width, copy.height).data;
+        };
+
+        const changedPixels = (before, after) => {
+          let changed = 0;
+          for (let index = 0; index < before.length; index += 4) {
+            const distance =
+              Math.abs(before[index] - after[index]) +
+              Math.abs(before[index + 1] - after[index + 1]) +
+              Math.abs(before[index + 2] - after[index + 2]) +
+              Math.abs(before[index + 3] - after[index + 3]);
+            if (distance > 18) {
+              changed += 1;
+            }
+          }
+          return changed;
+        };
+
+        const before = await capture();
+        if (tap) {
+          document.querySelector('[data-testid="mocchi"]')?.click();
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, waitMs));
+        const after = await capture();
+        return changedPixels(before, after);
+      }""",
+      {"waitMs": wait_ms, "tap": tap},
+    ))
+
+
 def main() -> int:
     try:
       from playwright.sync_api import expect, sync_playwright
@@ -301,12 +351,38 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
           reduced_motion="reduce",
         )
         reduce_page = reduce_context.new_page()
+        reduce_errors: list[str] = []
+        reduce_page.on("console", lambda message: reduce_errors.append(message.text) if message.type == "error" else None)
+        reduce_page.on("pageerror", lambda error: reduce_errors.append(str(error)))
         reduce_page.goto(index_url)
+        reduce_animation_state = reduce_page.get_by_test_id("mocchi-animation-state")
+        expect(reduce_animation_state).to_contain_text("intro done")
+
+        reduce_idle_delta = reduced_motion_canvas_delta(reduce_page, wait_ms=1200)
+        print(f"Reduced-motion idle pixel delta: {reduce_idle_delta}")
+        assert reduce_idle_delta > 200, "Reduced-motion idle breathing must be visible, not frozen."
+        assert reduce_idle_delta < 8000, "Reduced-motion idle breathing must stay calm, not bouncy."
+
+        reduce_page.get_by_test_id("prompt-teach-word").click()
+        expect(reduce_animation_state).to_contain_text("mood thinking")
+        reduce_tap_delta = reduced_motion_canvas_delta(reduce_page, wait_ms=120, tap=True)
+        print(f"Reduced-motion tap pixel delta: {reduce_tap_delta}")
+        assert reduce_tap_delta > 8000, "Reduced-motion tap reaction must still substantially change the canvas."
+
+        reduce_growth = reduce_page.get_by_test_id("growth-level")
+        reduce_growth_before = float(reduce_growth.get_attribute("data-growth") or "0")
+        reduce_page.get_by_test_id("record-button").click()
+        expect(reduce_page.get_by_test_id("record-button")).to_have_attribute("aria-pressed", "true")
+        reduce_page.wait_for_timeout(1000)
+        reduce_growth_after = float(reduce_growth.get_attribute("data-growth") or "0")
+        assert reduce_growth_after > reduce_growth_before, "Reduced-motion practice must still advance growth."
+
         reduce_page.get_by_test_id("bloom-card-button").click()
         expect(reduce_page.get_by_role("dialog", name="Bloom card")).to_be_visible()
         reduce_data_url = reduce_page.get_by_test_id("bloom-card-preview").get_attribute("src") or ""
         assert reduce_data_url.startswith("data:image/png;base64,"), "Reduced-motion bloom capture must produce a PNG."
         assert len(reduce_data_url) > 20000, "Reduced-motion bloom capture must not be blank."
+        assert reduce_errors == [], f"Reduced-motion page must not report console errors: {reduce_errors}"
         reduce_context.close()
 
       finally:

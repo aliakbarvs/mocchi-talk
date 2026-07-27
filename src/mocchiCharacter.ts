@@ -17,7 +17,7 @@ export type MocchiCharacter = {
   setSpeaking: (active: boolean) => void;
   setGrowthLevel: (value: number) => void;
   setSleeping: (active: boolean) => void;
-  update: (delta: number, elapsed: number) => void;
+  update: (delta: number, elapsed: number, reducedMotion?: boolean) => void;
   dispose: () => void;
 };
 
@@ -228,18 +228,20 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     applyMouth(faceParts, mood, speaking);
   }
 
-  function update(delta: number, elapsed: number): void {
+  function update(delta: number, elapsed: number, reducedMotion = false): void {
     if (disposed) {
       return;
     }
 
+    const idleElapsed = reducedMotion ? 0 : elapsed;
+    const breathingFrequency = reducedMotion ? 0.6 : 2.05;
     const pose = createMoodPose(mood);
-    const phase = moodPhase(mood, elapsed);
-    const idleFloat = Math.sin(elapsed * 2.4) * 0.026;
-    const idleYaw = Math.sin(elapsed * 0.72) * 0.085;
+    const phase = moodPhase(mood, idleElapsed);
+    const idleFloat = reducedMotion ? 0 : Math.sin(elapsed * 2.4) * 0.026;
+    const idleYaw = reducedMotion ? 0 : Math.sin(elapsed * 0.72) * 0.085;
     renderedGrowthLevel = damp(renderedGrowthLevel, targetGrowthLevel, delta, 4.8);
-    const breatheAmount = 0.018 + renderedGrowthLevel * 0.008;
-    const breathe = 1 + Math.sin(elapsed * 2.05) * breatheAmount;
+    const breatheAmount = reducedMotion ? 0.006 + renderedGrowthLevel * 0.002 : 0.018 + renderedGrowthLevel * 0.008;
+    const breathe = 1 + Math.sin(elapsed * breathingFrequency) * breatheAmount;
 
     pose.rootRotation.y += idleYaw;
     pose.bodyScale.set(1 + (breathe - 1) * 0.58, breathe, 1 + (breathe - 1) * 0.36);
@@ -303,15 +305,15 @@ export function createMocchiCharacter(palette: MocchiPalette): MocchiCharacter {
     faceParts.blushMaterial.opacity = damp(faceParts.blushMaterial.opacity, pose.blushOpacity, delta, 8);
 
     if (speaking) {
-      const chatter = 0.2 + (Math.sin(elapsed * 21) * 0.5 + 0.5) * 0.9;
+      const chatter = 0.2 + (Math.sin(idleElapsed * 21) * 0.5 + 0.5) * 0.9;
       faceParts.openMouth.scale.set(0.82, chatter, 0.13);
     }
 
-    applyGrowthVisuals(renderedGrowthLevel, elapsed);
+    applyGrowthVisuals(renderedGrowthLevel, idleElapsed);
     const emblemFade = smoothstep(0.18, 0.82, renderedGrowthLevel);
-    const emblemTargetScale = 0.72 + emblemFade * 0.4 + Math.sin(elapsed * 1.7) * 0.025 * emblemFade;
+    const emblemTargetScale = 0.72 + emblemFade * 0.4 + Math.sin(idleElapsed * 1.7) * 0.025 * emblemFade;
     dampVector(rig.emblem.scale, new THREE.Vector3(emblemTargetScale, emblemTargetScale, emblemTargetScale), delta, 7);
-    const leafBob = smoothstep(0.64, 1, renderedGrowthLevel) * Math.sin(elapsed * 1.9) * 0.018;
+    const leafBob = smoothstep(0.64, 1, renderedGrowthLevel) * Math.sin(idleElapsed * 1.9) * 0.018;
     dampVector(rig.growthLeaf.position, new THREE.Vector3(-0.42, 1.13 + leafBob, 0.5), delta, 7);
   }
 
