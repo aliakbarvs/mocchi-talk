@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "node tests/character-contract.mjs && node tests/audio-contract.mjs && python3 tests/smoke.py",
+    "test": "node tests/character-contract.mjs && node tests/audio-contract.mjs && node tests/phase3-contract.mjs && python3 tests/smoke.py",
     "test:smoke": "python3 tests/smoke.py"
   },
   "dependencies": {

@@ -183,6 +183,10 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("intro done")
         expect(page.get_by_test_id("session-count")).to_contain_text("Session")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Last time we practiced konnichiwa")
+        expect(page.get_by_test_id("word-of-day")).to_contain_text("salām")
+        expect(page.get_by_test_id("word-of-day")).to_contain_text("Peace")
+        wotd_box = page.get_by_test_id("word-of-day").bounding_box()
+        assert wotd_box is not None and wotd_box["height"] >= 48, "Word of the day tap target must be at least 48px tall."
         assert page.get_by_test_id("word-jar-count").count() == 0, "Visible word jar counter must be removed."
         assert page.get_by_test_id("growth-tier").count() == 0, "Visible growth tier must be removed."
         assert page.get_by_test_id("save-word").count() == 0, "Manual save-word button must be removed."
@@ -202,6 +206,49 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         assert sound_box is not None and sound_box["height"] >= 48 and sound_box["width"] >= 48, "Sound toggle tap target must be at least 48px."
         assert sound_box["y"] < 80, "Sound toggle should live in the top corner, not the bottom dock."
 
+        bloom_button = page.get_by_test_id("bloom-card-button")
+        bloom_box = bloom_button.bounding_box()
+        assert bloom_box is not None and bloom_box["height"] >= 48 and bloom_box["width"] >= 48, "Bloom card button must be at least 48px."
+        assert bloom_box["y"] < 80, "Bloom card affordance should live in the top area."
+
+        page.get_by_test_id("word-of-day").click()
+        expect(page.get_by_role("dialog", name="Word of the day")).to_be_visible()
+        expect(page.get_by_test_id("word-detail")).to_contain_text("سَلَام")
+        expect(page.get_by_test_id("word-detail")).to_contain_text("root")
+        expect(page.get_by_test_id("word-detail")).to_contain_text("peace, safety")
+        page.get_by_role("button", name="Close word of the day").click()
+        expect(page.get_by_role("dialog", name="Word of the day")).to_be_hidden()
+
+        bloom_button.click()
+        expect(page.get_by_role("dialog", name="Bloom card")).to_be_visible()
+        expect(page.get_by_test_id("bloom-card-status")).to_contain_text("Mocchi has learned 1 word")
+        bloom_data_url = page.get_by_test_id("bloom-card-preview").get_attribute("src") or ""
+        assert bloom_data_url.startswith("data:image/png;base64,"), "Bloom preview must be a PNG data URL."
+        assert len(bloom_data_url) > 20000, "Bloom capture PNG should be substantial enough to include scene pixels."
+        non_blank_pixels = page.evaluate(
+          """async (src) => {
+            const image = new Image();
+            image.src = src;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            const samples = [
+              context.getImageData(Math.floor(canvas.width * 0.5), Math.floor(canvas.height * 0.34), 1, 1).data,
+              context.getImageData(Math.floor(canvas.width * 0.5), Math.floor(canvas.height * 0.5), 1, 1).data,
+              context.getImageData(Math.floor(canvas.width * 0.5), Math.floor(canvas.height * 0.7), 1, 1).data
+            ];
+            return samples.filter((pixel) => pixel[3] > 0 && (pixel[0] !== 247 || pixel[1] !== 243 || pixel[2] !== 232)).length;
+          }""",
+          bloom_data_url,
+        )
+        assert non_blank_pixels > 0, "Bloom capture must contain non-background pixels."
+        save_box = page.get_by_test_id("save-bloom-card").bounding_box()
+        assert save_box is not None and save_box["height"] >= 48, "Save image action must be at least 48px tall."
+        page.get_by_role("button", name="Close bloom card").click()
+
         page.get_by_test_id("mocchi").click()
         expect(page.get_by_test_id("speech-bubble")).not_to_contain_text("Tap Mocchi")
         expect(animation_state).to_contain_text("mood happy")
@@ -212,7 +259,7 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("speaking false")
 
         page.get_by_test_id("prompt-teach-word").click()
-        expect(page.get_by_test_id("speech-bubble")).to_contain_text("Konnichiwa")
+        expect(page.get_by_test_id("speech-bubble")).to_contain_text("Salām")
         expect(animation_state).to_contain_text("mood thinking")
         prompt_growth = float(growth_level.get_attribute("data-growth") or "0")
         assert prompt_growth > initial_growth, "Prompt answers must auto-record their word and increase growth."
@@ -239,6 +286,28 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("speaking false")
         practice_growth = float(growth_level.get_attribute("data-growth") or "0")
         assert practice_growth > prompt_growth, "Practice completion must auto-record and increase growth."
+
+        fresh_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        fresh_page = fresh_context.new_page()
+        fresh_page.goto(index_url)
+        expect(fresh_page.get_by_test_id("speech-bubble")).to_contain_text("Today's word is salām — Peace.")
+        expect(fresh_page.get_by_test_id("word-of-day")).to_contain_text("salām")
+        fresh_context.close()
+
+        reduce_context = browser.new_context(
+          viewport={"width": 390, "height": 844},
+          is_mobile=True,
+          has_touch=True,
+          reduced_motion="reduce",
+        )
+        reduce_page = reduce_context.new_page()
+        reduce_page.goto(index_url)
+        reduce_page.get_by_test_id("bloom-card-button").click()
+        expect(reduce_page.get_by_role("dialog", name="Bloom card")).to_be_visible()
+        reduce_data_url = reduce_page.get_by_test_id("bloom-card-preview").get_attribute("src") or ""
+        assert reduce_data_url.startswith("data:image/png;base64,"), "Reduced-motion bloom capture must produce a PNG."
+        assert len(reduce_data_url) > 20000, "Reduced-motion bloom capture must not be blank."
+        reduce_context.close()
 
       finally:
         stop_dist_server(server)

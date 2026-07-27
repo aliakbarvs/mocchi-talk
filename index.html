@@ -17,6 +17,15 @@
           <div class="sky-shape sky-shape-a" aria-hidden="true"></div>
           <div class="sky-shape sky-shape-b" aria-hidden="true"></div>
           <button
+            id="bloom-card-button"
+            class="icon-button bloom-card-button"
+            type="button"
+            data-testid="bloom-card-button"
+            aria-label="Make bloom card"
+          >
+            <span aria-hidden="true">✿</span>
+          </button>
+          <button
             id="sound-toggle"
             class="icon-button sound-toggle"
             type="button"
@@ -44,10 +53,109 @@
           <aside id="speech-bubble" class="speech-bubble" aria-live="polite" data-testid="speech-bubble">
             <p id="speech-text">Tap Mocchi or choose a prompt.</p>
           </aside>
+          <button
+            id="word-of-day"
+            class="word-of-day"
+            type="button"
+            data-testid="word-of-day"
+            aria-label="Open word of the day"
+          >
+            <span id="word-of-day-label">Word of the day</span>
+            <span>
+              <span id="word-of-day-arabic" class="word-of-day-arabic">سَلَام</span>
+              <strong id="word-of-day-transliteration">Loading</strong>
+              <span id="word-of-day-meaning">Matcha word</span>
+            </span>
+          </button>
           <div id="onboarding-hint" class="onboarding-hint">
             Tap Mocchi for a friendly reaction. Session count is saved only in this browser.
           </div>
           <div id="feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
+          <div
+            id="word-detail-sheet"
+            class="sheet-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="word-detail-title"
+            hidden
+          >
+            <section class="sheet-panel word-detail-panel" data-testid="word-detail">
+              <button
+                id="close-word-detail"
+                class="icon-button sheet-close"
+                type="button"
+                aria-label="Close word of the day"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+              <p class="sheet-kicker" id="word-detail-title">Word of the day</p>
+              <p class="word-detail-arabic" id="word-detail-arabic"></p>
+              <h2 id="word-detail-heading"></h2>
+              <dl class="word-detail-list">
+                <div>
+                  <dt>Meaning</dt>
+                  <dd id="word-detail-meaning"></dd>
+                </div>
+                <div>
+                  <dt>Root</dt>
+                  <dd id="word-detail-root"></dd>
+                </div>
+                <div>
+                  <dt>Root meaning</dt>
+                  <dd id="word-detail-root-meaning"></dd>
+                </div>
+                <div>
+                  <dt>Root words</dt>
+                  <dd id="word-detail-root-words"></dd>
+                </div>
+                <div>
+                  <dt>Ayah reference</dt>
+                  <dd id="word-detail-ayah-reference"></dd>
+                </div>
+              </dl>
+              <p class="word-detail-example" id="word-detail-example"></p>
+              <p class="word-detail-note" id="word-detail-cultural-note"></p>
+              <p class="word-detail-note" id="word-detail-parent-prompt"></p>
+            </section>
+          </div>
+          <div
+            id="bloom-card-sheet"
+            class="sheet-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bloom-card-title"
+            hidden
+          >
+            <section class="sheet-panel bloom-card-panel">
+              <button
+                id="close-bloom-card"
+                class="icon-button sheet-close"
+                type="button"
+                aria-label="Close bloom card"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+              <p class="sheet-kicker" id="bloom-card-title">Bloom card</p>
+              <p id="bloom-card-status" class="bloom-card-status" data-testid="bloom-card-status">
+                Composing Mocchi's card.
+              </p>
+              <img
+                id="bloom-card-preview"
+                class="bloom-card-preview"
+                data-testid="bloom-card-preview"
+                alt="Generated Mocchi bloom card"
+                hidden
+              />
+              <div class="sheet-actions">
+                <button id="save-bloom-card" class="prompt-button" type="button" data-testid="save-bloom-card" disabled>
+                  Save image
+                </button>
+                <button id="share-bloom-card" class="prompt-button" type="button" data-testid="share-bloom-card" hidden>
+                  Share
+                </button>
+              </div>
+            </section>
+          </div>
         </section>
 
         <section class="bottom-dock" aria-label="Mocchi controls">

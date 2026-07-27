@@ -18,6 +18,13 @@
   --shadow: 0 18px 42px rgba(15, 107, 109, 0.16);
 }
 
+/* The `hidden` attribute must always win, even when a class sets display
+   (e.g. .sheet-backdrop { display: grid }) — otherwise hidden sheets/previews
+   stay in the layout and intercept pointer events across the whole page. */
+[hidden] {
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -305,8 +312,202 @@ button:focus-visible {
   backdrop-filter: blur(10px);
 }
 
+.bloom-card-button {
+  position: absolute;
+  top: max(12px, calc(env(safe-area-inset-top) + 10px));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 6;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-color: rgba(15, 107, 109, 0.12);
+  background: rgba(255, 249, 236, 0.78);
+  box-shadow: 0 8px 18px rgba(15, 107, 109, 0.1);
+  backdrop-filter: blur(10px);
+}
+
 .sound-toggle[aria-pressed="false"] {
   color: rgba(15, 107, 109, 0.58);
+}
+
+.word-of-day {
+  position: absolute;
+  top: max(126px, calc(env(safe-area-inset-top) + 126px));
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 3;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  width: min(56vw, 260px);
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid rgba(15, 107, 109, 0.13);
+  background: rgba(255, 249, 236, 0.86);
+  box-shadow: 0 8px 18px rgba(15, 107, 109, 0.08);
+  color: var(--ink);
+  text-align: left;
+  backdrop-filter: blur(10px);
+}
+
+.word-of-day > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+#word-of-day-label {
+  color: rgba(15, 107, 109, 0.7);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.word-of-day strong,
+.word-of-day span span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-of-day strong {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.word-of-day span span {
+  color: rgba(15, 107, 109, 0.76);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.word-of-day .word-of-day-arabic {
+  color: var(--teal);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  align-items: end;
+  padding: 72px max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  background: rgba(15, 107, 109, 0.2);
+}
+
+.sheet-panel {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: min(76vh, 680px);
+  margin-inline: auto;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid rgba(15, 107, 109, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 249, 236, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.sheet-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+
+.sheet-kicker {
+  margin: 0 56px 8px 0;
+  color: rgba(15, 107, 109, 0.68);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.word-detail-arabic {
+  margin: 8px 56px 4px 0;
+  color: var(--teal);
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.word-detail-panel h2 {
+  margin: 0 56px 16px 0;
+  color: var(--ink);
+  font-size: 1.45rem;
+  line-height: 1.18;
+}
+
+.word-detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.word-detail-list div {
+  display: grid;
+  gap: 3px;
+}
+
+.word-detail-list dt {
+  color: rgba(15, 107, 109, 0.62);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.word-detail-list dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 800;
+  line-height: 1.28;
+}
+
+.word-detail-example,
+.word-detail-note {
+  margin: 14px 0 0;
+  color: rgba(22, 72, 74, 0.88);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.word-detail-example {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(79, 199, 197, 0.12);
+}
+
+.bloom-card-status {
+  margin: 0 56px 12px 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 850;
+  line-height: 1.24;
+}
+
+.bloom-card-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: contain;
+  border: 1px solid rgba(15, 107, 109, 0.12);
+  border-radius: 8px;
+  background: #f7f3e8;
+}
+
+.sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .record-button.is-recording {
@@ -367,6 +568,10 @@ button:focus-visible {
   .speech-bubble {
     top: 24px;
   }
+
+  .word-of-day {
+    top: 132px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -379,6 +584,14 @@ button:focus-visible {
   }
 
   .prompt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .word-of-day {
+    width: min(calc(100% - 116px), 250px);
+  }
+
+  .sheet-actions {
     grid-template-columns: 1fr;
   }
 }

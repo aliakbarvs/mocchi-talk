@@ -20,9 +20,28 @@ type WordJarEntry = {
   addedAt: string;
 };
 
+type MatchaWord = {
+  arabic: string;
+  transliteration: string;
+  meaning: string;
+  root: string;
+  root_meaning: string;
+  root_words: string;
+  example: string;
+  example_translation: string;
+  cultural_note: string;
+  parent_prompt: string;
+  ayah_reference: string;
+};
+
+type MatchaVocabPack = {
+  word: MatchaWord;
+};
+
 declare global {
   interface Window {
     __mocchiGrowth?: number;
+    __mocchiBloomDataUrl?: string;
   }
 }
 
@@ -115,10 +134,33 @@ const speechText = mustGet<HTMLElement>('speech-text');
 const animationStateLabel = mustGet<HTMLElement>('mocchi-animation-state');
 const toast = mustGet<HTMLElement>('feedback-toast');
 const soundToggle = mustGet<HTMLButtonElement>('sound-toggle');
+const bloomCardButton = mustGet<HTMLButtonElement>('bloom-card-button');
 const recordButton = mustGet<HTMLButtonElement>('record-button');
 const growthLevelStatus = mustGet<HTMLElement>('growth-level');
 const sessionCount = document.querySelector<HTMLElement>('[data-testid="session-count"]');
 const onboardingHint = mustGet<HTMLElement>('onboarding-hint');
+const wordOfDayButton = mustGet<HTMLButtonElement>('word-of-day');
+const wordOfDayArabic = mustGet<HTMLElement>('word-of-day-arabic');
+const wordOfDayTransliteration = mustGet<HTMLElement>('word-of-day-transliteration');
+const wordOfDayMeaning = mustGet<HTMLElement>('word-of-day-meaning');
+const wordDetailSheet = mustGet<HTMLElement>('word-detail-sheet');
+const closeWordDetailButton = mustGet<HTMLButtonElement>('close-word-detail');
+const wordDetailArabic = mustGet<HTMLElement>('word-detail-arabic');
+const wordDetailHeading = mustGet<HTMLElement>('word-detail-heading');
+const wordDetailMeaning = mustGet<HTMLElement>('word-detail-meaning');
+const wordDetailRoot = mustGet<HTMLElement>('word-detail-root');
+const wordDetailRootMeaning = mustGet<HTMLElement>('word-detail-root-meaning');
+const wordDetailRootWords = mustGet<HTMLElement>('word-detail-root-words');
+const wordDetailAyahReference = mustGet<HTMLElement>('word-detail-ayah-reference');
+const wordDetailExample = mustGet<HTMLElement>('word-detail-example');
+const wordDetailCulturalNote = mustGet<HTMLElement>('word-detail-cultural-note');
+const wordDetailParentPrompt = mustGet<HTMLElement>('word-detail-parent-prompt');
+const bloomCardSheet = mustGet<HTMLElement>('bloom-card-sheet');
+const closeBloomCardButton = mustGet<HTMLButtonElement>('close-bloom-card');
+const bloomCardPreview = mustGet<HTMLImageElement>('bloom-card-preview');
+const bloomCardStatus = mustGet<HTMLElement>('bloom-card-status');
+const saveBloomCardButton = mustGet<HTMLButtonElement>('save-bloom-card');
+const shareBloomCardButton = mustGet<HTMLButtonElement>('share-bloom-card');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const returningVisitor = readStorage(visitKey) === 'true';
 
@@ -135,15 +177,23 @@ let growthLevel = growthLevelForCount(wordJar.length);
 let tapActive = false;
 let speakingActive = false;
 let openingActive = true;
+let speechLockedByInteraction = false;
 let speechAudio: HTMLAudioElement | undefined;
 const narrationAudio = new Map<AudioClipId, HTMLAudioElement>();
 let character: ReturnType<typeof createMocchiCharacter> | undefined;
+let dailyWord: MatchaWord | undefined;
+let captureSceneImage: (() => string) | undefined;
+let latestBloomCardDataUrl = '';
+let latestBloomCardFile: File | undefined;
 
 setupSessionCounter();
 setupOpeningMoment();
 setupGrowthLevel();
 setupSoundToggle();
 setupNarrationAudio();
+setupWordOfDaySheet();
+setupBloomCard();
+void setupVocabPack();
 setupControls();
 setupScene();
 updateAnimationStateLabel();
@@ -221,6 +271,120 @@ function narrationAssetUrl(clipId: AudioClipId): string {
   return new URL(`audio/mocchi/${clipId}.wav`, baseUrl).href;
 }
 
+async function setupVocabPack(): Promise<void> {
+  try {
+    const baseUrl = new URL(import.meta.env.BASE_URL, document.baseURI);
+    const response = await fetch(new URL('matcha-vocab/current.json', baseUrl).href);
+    if (!response.ok) {
+      throw new Error(`Vocabulary pack failed with ${response.status}`);
+    }
+
+    const pack = normalizeVocabPack((await response.json()) as unknown);
+    if (!pack) {
+      throw new Error('Vocabulary pack has an unexpected shape.');
+    }
+
+    dailyWord = pack.word;
+    applyDailyWordToPrompt(dailyWord);
+    renderWordOfDay(dailyWord);
+    if (wordJar.length === 0 && !speechLockedByInteraction) {
+      updateSpeech(`Today's word is ${dailyWord.transliteration} — ${dailyWord.meaning}.`);
+    }
+  } catch {
+    wordOfDayArabic.textContent = '';
+    wordOfDayTransliteration.textContent = 'Quiet word';
+    wordOfDayMeaning.textContent = 'Try again soon';
+  }
+}
+
+function normalizeVocabPack(candidate: unknown): MatchaVocabPack | undefined {
+  if (!candidate || typeof candidate !== 'object') {
+    return undefined;
+  }
+
+  const maybePack = candidate as { word?: unknown };
+  const word = normalizeMatchaWord(maybePack.word);
+  return word ? { word } : undefined;
+}
+
+function normalizeMatchaWord(candidate: unknown): MatchaWord | undefined {
+  if (!candidate || typeof candidate !== 'object') {
+    return undefined;
+  }
+
+  const word = candidate as Record<keyof MatchaWord, unknown>;
+  const normalized: MatchaWord = {
+    arabic: normalizeText(word.arabic),
+    transliteration: normalizeText(word.transliteration),
+    meaning: normalizeText(word.meaning),
+    root: normalizeText(word.root),
+    root_meaning: normalizeText(word.root_meaning),
+    root_words: normalizeText(word.root_words),
+    example: normalizeText(word.example),
+    example_translation: normalizeText(word.example_translation),
+    cultural_note: normalizeText(word.cultural_note),
+    parent_prompt: normalizeText(word.parent_prompt),
+    ayah_reference: normalizeText(word.ayah_reference)
+  };
+
+  if (!normalized.arabic || !normalized.transliteration || !normalized.meaning) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeText(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeText(item)).filter(Boolean).join(', ');
+  }
+
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function applyDailyWordToPrompt(word: MatchaWord): void {
+  prompts.word.response = `${capitalize(word.transliteration)} means ${word.meaning}. Its root is ${word.root}: ${word.root_meaning}.`;
+  prompts.word.toast = 'Matcha word learned, calmly.';
+  prompts.word.jarWord = word.transliteration;
+}
+
+function renderWordOfDay(word: MatchaWord): void {
+  wordOfDayArabic.textContent = word.arabic;
+  wordOfDayTransliteration.textContent = word.transliteration;
+  wordOfDayMeaning.textContent = word.meaning;
+  wordOfDayButton.setAttribute('aria-label', `Open word of the day: ${word.transliteration}, ${word.meaning}`);
+
+  wordDetailArabic.textContent = word.arabic;
+  wordDetailHeading.textContent = `${word.transliteration} — ${word.meaning}`;
+  wordDetailMeaning.textContent = word.meaning;
+  wordDetailRoot.textContent = word.root;
+  wordDetailRootMeaning.textContent = word.root_meaning;
+  wordDetailRootWords.textContent = word.root_words;
+  wordDetailAyahReference.textContent = word.ayah_reference;
+  wordDetailExample.textContent = `${word.example} — ${word.example_translation}`;
+  wordDetailCulturalNote.textContent = word.cultural_note;
+  wordDetailParentPrompt.textContent = word.parent_prompt;
+}
+
+function setupWordOfDaySheet(): void {
+  wordOfDayButton.addEventListener('click', () => {
+    wordDetailSheet.hidden = false;
+    closeWordDetailButton.focus();
+  });
+
+  closeWordDetailButton.addEventListener('click', () => {
+    wordDetailSheet.hidden = true;
+    wordOfDayButton.focus();
+  });
+
+  wordDetailSheet.addEventListener('click', (event) => {
+    if (event.target === wordDetailSheet) {
+      wordDetailSheet.hidden = true;
+      wordOfDayButton.focus();
+    }
+  });
+}
+
 function setupControls(): void {
   mocchiButton.addEventListener('click', () => {
     const reaction = tapReactions[tapIndex % tapReactions.length];
@@ -240,6 +404,7 @@ function setupControls(): void {
 
   recordButton.addEventListener('click', () => {
     clearTimeout(recordTimer);
+    speechLockedByInteraction = true;
     const simulatedOnly = !navigator.mediaDevices?.getUserMedia;
     const listeningText = simulatedOnly
       ? 'Pretending to listen. Mocchi can practice without microphone permission.'
@@ -267,6 +432,7 @@ function setupControls(): void {
 }
 
 function applyResponse(prompt: Prompt): void {
+  speechLockedByInteraction = true;
   setMood(prompt.mood);
   updateSpeech(prompt.response);
   if (prompt.jarWord) {
@@ -313,6 +479,10 @@ function updateSpeech(text: string): void {
   speechText.textContent = text;
 }
 
+function capitalize(text: string): string {
+  return text.length > 0 ? `${text[0].toLocaleUpperCase()}${text.slice(1)}` : text;
+}
+
 function showToast(message: string): void {
   clearTimeout(toastTimer);
   toast.textContent = message;
@@ -322,6 +492,276 @@ function showToast(message: string): void {
     toast.classList.remove('is-visible');
     toast.hidden = true;
   }, reducedMotion ? 1200 : 2200);
+}
+
+function setupBloomCard(): void {
+  shareBloomCardButton.hidden = true;
+
+  bloomCardButton.addEventListener('click', () => {
+    void openBloomCard();
+  });
+
+  closeBloomCardButton.addEventListener('click', () => {
+    bloomCardSheet.hidden = true;
+    bloomCardButton.focus();
+  });
+
+  bloomCardSheet.addEventListener('click', (event) => {
+    if (event.target === bloomCardSheet) {
+      bloomCardSheet.hidden = true;
+      bloomCardButton.focus();
+    }
+  });
+
+  saveBloomCardButton.addEventListener('click', () => {
+    if (!latestBloomCardDataUrl) {
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = latestBloomCardDataUrl;
+    link.download = 'mocchi-bloom-card.png';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    showToast('Bloom card saved.');
+  });
+
+  shareBloomCardButton.addEventListener('click', () => {
+    void shareBloomCard();
+  });
+}
+
+async function openBloomCard(): Promise<void> {
+  bloomCardSheet.hidden = false;
+  bloomCardButton.disabled = true;
+  bloomCardStatus.textContent = "Composing Mocchi's bloom card.";
+  bloomCardPreview.removeAttribute('src');
+  bloomCardPreview.hidden = true;
+  saveBloomCardButton.disabled = true;
+  shareBloomCardButton.hidden = true;
+  latestBloomCardFile = undefined;
+  closeBloomCardButton.focus();
+
+  try {
+    latestBloomCardDataUrl = await composeBloomCard();
+    window.__mocchiBloomDataUrl = latestBloomCardDataUrl;
+    bloomCardPreview.src = latestBloomCardDataUrl;
+    bloomCardPreview.hidden = false;
+    bloomCardStatus.textContent = learnedWordsText();
+    latestBloomCardFile = await fileFromDataUrl(latestBloomCardDataUrl);
+    saveBloomCardButton.disabled = false;
+    shareBloomCardButton.hidden = !canShareBloomFile(latestBloomCardFile);
+    showToast('Bloom card ready.');
+  } catch {
+    latestBloomCardDataUrl = '';
+    saveBloomCardButton.disabled = true;
+    bloomCardStatus.textContent = 'Mocchi could not make a card yet. Try again.';
+    showToast('Bloom card needs one more moment.');
+  } finally {
+    bloomCardButton.disabled = false;
+  }
+}
+
+async function composeBloomCard(): Promise<string> {
+  const card = document.createElement('canvas');
+  card.width = 1080;
+  card.height = 1350;
+  const context = card.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas 2D is unavailable.');
+  }
+
+  drawBloomBackground(context, card.width, card.height);
+
+  const sceneDataUrl = captureSceneImage?.();
+  if (sceneDataUrl) {
+    try {
+      const sceneImage = await loadImage(sceneDataUrl);
+      drawImageCover(context, sceneImage, 90, 118, 900, 760);
+    } catch {
+      drawFallbackMocchi(context, 540, 486);
+    }
+  } else {
+    drawFallbackMocchi(context, 540, 486);
+  }
+
+  drawBloomCopy(context, card.width, card.height);
+  return card.toDataURL('image/png');
+}
+
+function drawBloomBackground(context: CanvasRenderingContext2D, width: number, height: number): void {
+  context.fillStyle = palette.cream;
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = 'rgba(79, 199, 197, 0.16)';
+  context.beginPath();
+  context.ellipse(185, 310, 250, 96, -0.28, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = 'rgba(255, 107, 87, 0.13)';
+  context.beginPath();
+  context.ellipse(920, 520, 230, 88, 0.36, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = 'rgba(255, 211, 77, 0.28)';
+  context.beginPath();
+  context.arc(830, 210, 72, 0, Math.PI * 2);
+  context.fill();
+
+  context.strokeStyle = 'rgba(15, 107, 109, 0.14)';
+  context.lineWidth = 3;
+  roundRect(context, 54, 54, width - 108, height - 108, 36);
+  context.stroke();
+}
+
+function drawBloomCopy(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const latestWord = wordJar[0]?.word;
+  const todayText = dailyWord ? `${dailyWord.transliteration} — ${dailyWord.meaning}` : 'a quiet word';
+
+  context.fillStyle = palette.teal;
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  context.font = '900 58px Inter, system-ui, sans-serif';
+  context.fillText(learnedWordsText(), width / 2, 900);
+
+  context.font = '800 42px Inter, system-ui, sans-serif';
+  context.fillStyle = '#16484a';
+  context.fillText(latestWord ? `Latest learned word: ${latestWord}` : `Today's word: ${todayText}`, width / 2, 988);
+
+  context.font = '800 34px Inter, system-ui, sans-serif';
+  context.fillStyle = 'rgba(22, 72, 74, 0.78)';
+  wrapCenteredText(context, 'A calm friend who grows when you learn', width / 2, 1072, 780, 48);
+
+  context.font = '900 38px Inter, system-ui, sans-serif';
+  context.fillStyle = palette.coral;
+  context.fillText('Matcha-i.com/mocchi', width / 2, height - 150);
+}
+
+function drawFallbackMocchi(context: CanvasRenderingContext2D, centerX: number, centerY: number): void {
+  context.save();
+  context.fillStyle = '#fff8ec';
+  context.strokeStyle = 'rgba(15, 107, 109, 0.15)';
+  context.lineWidth = 8;
+  context.beginPath();
+  context.ellipse(centerX, centerY, 190, 150, 0, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  context.fillStyle = palette.coral;
+  context.fillRect(centerX - 152, centerY - 168, 304, 42);
+  context.fillStyle = palette.teal;
+  context.beginPath();
+  context.arc(centerX - 64, centerY - 24, 15, 0, Math.PI * 2);
+  context.arc(centerX + 64, centerY - 24, 15, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function learnedWordsText(): string {
+  const count = wordJar.length;
+  return `Mocchi has learned ${count} ${count === 1 ? 'word' : 'words'}`;
+}
+
+function drawImageCover(
+  context: CanvasRenderingContext2D,
+  image: CanvasImageSource & { width: number; height: number },
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const sourceRatio = image.width / image.height;
+  const targetRatio = width / height;
+  const sourceWidth = sourceRatio > targetRatio ? image.height * targetRatio : image.width;
+  const sourceHeight = sourceRatio > targetRatio ? image.height : image.width / targetRatio;
+  const sourceX = (image.width - sourceWidth) / 2;
+  const sourceY = (image.height - sourceHeight) / 2;
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+}
+
+function wrapCenteredText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+): void {
+  const words = text.split(' ');
+  let line = '';
+  let lineY = y;
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (context.measureText(testLine).width > maxWidth && line) {
+      context.fillText(line, x, lineY);
+      line = word;
+      lineY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+
+  if (line) {
+    context.fillText(line, x, lineY);
+  }
+}
+
+function roundRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.arcTo(x + width, y, x + width, y + height, radius);
+  context.arcTo(x + width, y + height, x, y + height, radius);
+  context.arcTo(x, y + height, x, y, radius);
+  context.arcTo(x, y, x + width, y, radius);
+  context.closePath();
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Image load failed.'));
+    image.src = src;
+  });
+}
+
+async function fileFromDataUrl(dataUrl: string): Promise<File> {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], 'mocchi-bloom-card.png', { type: 'image/png' });
+}
+
+function canShareBloomFile(file: File): boolean {
+  if (typeof navigator.share !== 'function') {
+    return false;
+  }
+
+  return typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+}
+
+async function shareBloomCard(): Promise<void> {
+  if (!latestBloomCardFile || !canShareBloomFile(latestBloomCardFile)) {
+    shareBloomCardButton.hidden = true;
+    return;
+  }
+
+  try {
+    await navigator.share({
+      files: [latestBloomCardFile],
+      title: 'Mocchi Bloom Card',
+      text: 'A calm friend who grows when you learn'
+    });
+  } catch {
+    showToast('Sharing was cancelled.');
+  }
 }
 
 function speak(prompt: Prompt): void {
@@ -490,7 +930,7 @@ function setupScene(): void {
 
   let renderer: THREE.WebGLRenderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
   } catch {
     canvas.hidden = true;
     fallback.hidden = false;
@@ -542,6 +982,13 @@ function setupScene(): void {
     character?.update(delta, elapsed);
     renderer.render(scene, camera);
     requestAnimationFrame(render);
+  };
+
+  captureSceneImage = () => {
+    resize();
+    character?.update(reducedMotion ? 1 : 0, reducedMotion ? 0 : clock.elapsedTime);
+    renderer.render(scene, camera);
+    return renderer.domElement.toDataURL('image/png');
   };
 
   window.addEventListener('resize', resize, { passive: true });

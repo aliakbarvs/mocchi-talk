@@ -1,0 +1,40 @@
+{
+  "day": 1,
+  "date": "2026-07-20",
+  "word": {
+    "arabic": "سَلَام",
+    "transliteration": "salām",
+    "meaning": "Peace",
+    "root": "س-ل-م",
+    "root_meaning": "peace, safety, wholeness, submission",
+    "root_words": "islām, muslim, taslīm, salīm",
+    "example": "ٱلسَّلَامُ عَلَيْكُمْ",
+    "example_translation": "Peace be upon you",
+    "cultural_note": "This is the greeting Muslims have exchanged for over 1,400 years. It's not just a hello — it's a prayer for the other person's wellbeing. The word Islam itself comes from this same root: finding peace through surrendering to God.",
+    "parent_prompt": "Today, try greeting your child with 'Assalamu'alaikum' every time you enter a room. See how many times they respond with 'Wa'alaikumussalam' before bed. Each exchange is a small prayer.",
+    "ayah_reference": "Quran 24:61 — 'When you enter houses, greet one another with a greeting from God, blessed and good.'",
+    "audio_key": "salaam",
+    "illustration_style": "Two figures exchanging a glowing greeting under a starry arch"
+  },
+  "related_words": [
+    {
+      "arabic": "إِسْلَام",
+      "transliteration": "islām",
+      "meaning": "submission / surrender (to God)",
+      "note": "The name of our faith — finding peace through surrender"
+    },
+    {
+      "arabic": "مُسْلِم",
+      "transliteration": "muslim",
+      "meaning": "one who submits",
+      "note": "Someone who practices Islam"
+    },
+    {
+      "arabic": "سَلِيم",
+      "transliteration": "salīm",
+      "meaning": "sound, healthy, whole",
+      "note": "A pure heart (qalbun salīm) is a heart at peace"
+    }
+  ],
+  "in_the_world": "The next time you hear 'Assalamu'alaikum,' notice that you're receiving a gift of peace. You can say it back — and mean it."
+}
