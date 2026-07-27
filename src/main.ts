@@ -533,7 +533,11 @@ function setupScene(): void {
 
   const render = () => {
     resize();
-    const delta = reducedMotion ? 0 : clock.getDelta();
+    // Reduced motion: snap to the correct resting pose/growth (delta=1 converges damped
+    // interpolation in one frame) but freeze elapsed so there is no perpetual oscillation
+    // (idle bob, breathing, bloom pulse). The character stays alive and state-correct, not frozen.
+    const rawDelta = clock.getDelta();
+    const delta = reducedMotion ? 1 : rawDelta;
     const elapsed = reducedMotion ? 0 : clock.elapsedTime;
     character?.update(delta, elapsed);
     renderer.render(scene, camera);
