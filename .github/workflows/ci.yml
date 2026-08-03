@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Install browser smoke-test runtime
+        run: |
+          python3 -m pip install playwright==1.54.0
+          python3 -m playwright install --with-deps chromium
+      - name: Build production bundle
+        run: npm run build
+      - name: Run contracts and browser smoke test
+        run: npm test
