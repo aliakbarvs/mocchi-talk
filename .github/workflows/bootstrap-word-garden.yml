@@ -1,0 +1,38 @@
+name: Bootstrap Word Garden
+
+on:
+  push:
+    branches:
+      - codex/word-garden
+
+permissions:
+  contents: write
+
+jobs:
+  transform-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/word-garden
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply product slice
+        run: python3 scripts/apply_word_garden.py
+      - name: Regenerate portable dependency lock
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+      - name: Commit verified changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add calm Word Garden learning recall"
+          git push origin HEAD:codex/word-garden
