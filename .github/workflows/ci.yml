@@ -4,9 +4,14 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,4 +27,6 @@ jobs:
       - name: Build production bundle
         run: npm run build
       - name: Run contracts and browser smoke test
-        run: npm test
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: timeout 240s npm test
