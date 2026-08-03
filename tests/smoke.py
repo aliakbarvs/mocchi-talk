@@ -194,8 +194,6 @@ def main() -> int:
             "--disable-crashpad",
             "--disable-breakpad",
             "--disable-dev-shm-usage",
-            "--no-zygote",
-            "--single-process",
           ],
         )
       except Exception as error:
@@ -347,6 +345,11 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("speaking false")
         practice_growth = float(growth_level.get_attribute("data-growth") or "0")
         assert practice_growth > prompt_growth, "Practice completion must auto-record and increase growth."
+
+        # Release the graphics-heavy primary context before starting the isolated
+        # fresh-visitor and reduced-motion scenarios. Keeping several animated
+        # WebGL contexts alive can exhaust headless Chromium in CI.
+        page.context.close()
 
         fresh_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
         fresh_page = fresh_context.new_page()
