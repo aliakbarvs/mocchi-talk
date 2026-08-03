@@ -231,7 +231,15 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("mood happy")
         expect(animation_state).to_contain_text("speaking false")
         expect(animation_state).to_contain_text("intro done")
-        expect(page.get_by_test_id("session-count")).to_contain_text("Session")
+        assert page.get_by_test_id("session-count").count() == 0, "Visible session counter must be removed."
+        word_garden_button = page.get_by_test_id("word-garden-button")
+        garden_box = word_garden_button.bounding_box()
+        assert garden_box is not None and garden_box["height"] >= 48, "Word Garden tap target must be at least 48px."
+        word_garden_button.click()
+        expect(page.get_by_role("dialog", name="Word garden")).to_be_visible()
+        expect(page.get_by_test_id("word-garden")).to_contain_text("konnichiwa")
+        page.get_by_role("button", name="Close word garden").click()
+        expect(page.get_by_role("dialog", name="Word garden")).to_be_hidden()
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Last time we practiced konnichiwa")
         expect(page.get_by_test_id("word-of-day")).to_contain_text("salām")
         expect(page.get_by_test_id("word-of-day")).to_contain_text("Peace")
@@ -313,6 +321,9 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("mood thinking")
         prompt_growth = float(growth_level.get_attribute("data-growth") or "0")
         assert prompt_growth > initial_growth, "Prompt answers must auto-record their word and increase growth."
+        word_garden_button.click()
+        expect(page.get_by_test_id("word-garden")).to_contain_text("salām")
+        page.get_by_role("button", name="Close word garden").click()
         page.wait_for_function(
           "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/word.wav'))"
         )

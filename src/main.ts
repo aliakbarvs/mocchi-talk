@@ -137,7 +137,11 @@ const soundToggle = mustGet<HTMLButtonElement>('sound-toggle');
 const bloomCardButton = mustGet<HTMLButtonElement>('bloom-card-button');
 const recordButton = mustGet<HTMLButtonElement>('record-button');
 const growthLevelStatus = mustGet<HTMLElement>('growth-level');
-const sessionCount = document.querySelector<HTMLElement>('[data-testid="session-count"]');
+const wordGardenButton = mustGet<HTMLButtonElement>('word-garden-button');
+const wordGardenSheet = mustGet<HTMLElement>('word-garden-sheet');
+const closeWordGardenButton = mustGet<HTMLButtonElement>('close-word-garden');
+const wordGardenSummary = mustGet<HTMLElement>('word-garden-summary');
+const wordGardenList = mustGet<HTMLElement>('word-garden-list');
 const onboardingHint = mustGet<HTMLElement>('onboarding-hint');
 const wordOfDayButton = mustGet<HTMLButtonElement>('word-of-day');
 const wordOfDayArabic = mustGet<HTMLElement>('word-of-day-arabic');
@@ -186,7 +190,7 @@ let captureSceneImage: (() => string) | undefined;
 let latestBloomCardDataUrl = '';
 let latestBloomCardFile: File | undefined;
 
-setupSessionCounter();
+setupWordGarden();
 setupOpeningMoment();
 setupGrowthLevel();
 setupSoundToggle();
@@ -208,18 +212,94 @@ function mustGet<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
-function setupSessionCounter(): void {
-  const previous = Number.parseInt(readStorage(sessionKey) ?? '0', 10);
-  const next = Number.isFinite(previous) ? previous + 1 : 1;
-  writeStorage(sessionKey, String(next));
-  if (sessionCount) {
-    sessionCount.textContent = `Session ${next}`;
-    sessionCount.setAttribute('aria-label', `Local session count ${next}`);
-  }
-
+function setupWordGarden(): void {
   if (readStorage(hintKey) === 'true') {
     onboardingHint.classList.add('is-compact');
   }
+
+  renderWordGarden();
+
+  wordGardenButton.addEventListener('click', () => {
+    renderWordGarden();
+    wordGardenSheet.hidden = false;
+    closeWordGardenButton.focus();
+  });
+
+  closeWordGardenButton.addEventListener('click', closeWordGarden);
+
+  wordGardenSheet.addEventListener('click', (event) => {
+    if (event.target === wordGardenSheet) {
+      closeWordGarden();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !wordGardenSheet.hidden) {
+      closeWordGarden();
+    }
+  });
+}
+
+function closeWordGarden(): void {
+  wordGardenSheet.hidden = true;
+  wordGardenButton.focus();
+}
+
+function recentUniqueWords(): WordJarEntry[] {
+  const seen = new Set<string>();
+  const words: WordJarEntry[] = [];
+
+  for (const entry of wordJar) {
+    const key = entry.word.toLocaleLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    words.push(entry);
+    if (words.length >= 12) {
+      break;
+    }
+  }
+
+  return words;
+}
+
+function renderWordGarden(): void {
+  const words = recentUniqueWords();
+  wordGardenList.replaceChildren();
+
+  if (words.length === 0) {
+    wordGardenSummary.textContent = 'Words you practice will grow here.';
+    const emptyState = document.createElement('p');
+    emptyState.className = 'word-garden-empty';
+    emptyState.textContent = 'Choose “Teach me a word” or practice speaking with Mocchi.';
+    wordGardenList.append(emptyState);
+    wordGardenButton.setAttribute('aria-label', 'Open word garden. No words remembered yet.');
+    return;
+  }
+
+  const countLabel = words.length === 1 ? 'word' : 'words';
+  wordGardenSummary.textContent = `Mocchi remembers ${words.length} ${countLabel}. Tap one to revisit it.`;
+  wordGardenButton.setAttribute('aria-label', `Open word garden with ${words.length} remembered ${countLabel}.`);
+
+  for (const entry of words) {
+    const button = document.createElement('button');
+    button.className = 'word-garden-word';
+    button.type = 'button';
+    button.textContent = entry.word;
+    button.setAttribute('aria-label', `Revisit word ${entry.word}`);
+    button.addEventListener('click', () => revisitWord(entry.word));
+    wordGardenList.append(button);
+  }
+}
+
+function revisitWord(word: string): void {
+  closeWordGarden();
+  speechLockedByInteraction = true;
+  setMood('happy');
+  updateSpeech(`We remember ${word} together.`);
+  showToast(`${capitalize(word)} is growing with Mocchi.`);
 }
 
 function setupSoundToggle(): void {
@@ -884,6 +964,7 @@ function recordWord(word: string): void {
   wordJar = [{ word: trimmedWord.slice(0, 40), addedAt: new Date().toISOString() }, ...wordJar].slice(0, maxStoredWords);
   writeStorage(wordJarKey, JSON.stringify(wordJar));
   updateGrowthLevel();
+  renderWordGarden();
 }
 
 function growthLevelForCount(count: number): number {

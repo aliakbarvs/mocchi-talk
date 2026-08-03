@@ -269,7 +269,7 @@ button:focus-visible {
   align-items: center;
 }
 
-.session-pill,
+.word-garden-button,
 .icon-button,
 .prompt-button {
   display: inline-flex;
@@ -284,10 +284,17 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
-.session-pill {
+.word-garden-button {
+  gap: 8px;
   justify-content: flex-start;
   border-radius: 8px;
   color: rgba(15, 107, 109, 0.86);
+  text-align: left;
+}
+
+.word-garden-button > span:first-child {
+  color: var(--coral);
+  font-size: 1.25rem;
 }
 
 .icon-button {
@@ -485,6 +492,52 @@ button:focus-visible {
   background: rgba(79, 199, 197, 0.12);
 }
 
+.word-garden-panel h2 {
+  margin: 0 56px 8px 0;
+  color: var(--ink);
+  font-size: 1.45rem;
+  line-height: 1.18;
+}
+
+.word-garden-summary {
+  margin: 0 56px 16px 0;
+  color: rgba(22, 72, 74, 0.78);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.word-garden-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.word-garden-word {
+  min-height: 52px;
+  padding: 11px 14px;
+  border: 1px solid rgba(15, 107, 109, 0.16);
+  background: rgba(79, 199, 197, 0.1);
+  color: var(--ink);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.word-garden-word:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.word-garden-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed rgba(15, 107, 109, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 211, 77, 0.1);
+  color: rgba(22, 72, 74, 0.78);
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 .bloom-card-status {
   margin: 0 56px 12px 0;
   color: var(--ink);
@@ -579,8 +632,12 @@ button:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 
-  .session-pill {
+  .word-garden-button {
     grid-column: 1 / -1;
+  }
+
+  .word-garden-list {
+    grid-template-columns: 1fr;
   }
 
   .prompt-grid {
