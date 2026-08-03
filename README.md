@@ -16,7 +16,7 @@ The smoke test uses Python Playwright with the local Chromium under `~/.cache/ms
 
 ## Architecture
 
-- `src/main.ts` owns UI state, prompt responses, local audio narration playback, localStorage session counting, record demo state, WebGL startup, and the render loop.
+- `src/main.ts` owns UI state, prompt responses, local audio narration playback, the local Word Garden and growth history, record demo state, WebGL startup, and the render loop.
 - `src/mocchiCharacter.ts` exports `createMocchiCharacter()`, returning a narrow `group`, `setMood()`, `triggerTap()`, `setSpeaking()`, `update()`, and `dispose()` interface. The current implementation is smooth procedural Three.js geometry, so a future GLB-backed factory can replace it without rewriting the UI loop.
 - `src/webgl.ts` contains feature detection for the fallback message.
 - `src/style.css` contains the mobile-first fullscreen layout, safe-area handling, large touch controls, calm Matcha SoftWonder visual language, and reduced-motion support.
@@ -28,6 +28,10 @@ The smoke test uses Python Playwright with the local Chromium under `~/.cache/ms
 Mocchi is still self-contained procedural Three.js: no GLB, CDN, or runtime image assets are loaded. The factory now builds an animation-ready rig with named root, body, head, arm, foot, headband, face, eye, and mouth pivots. Mood changes set rest poses, and `update(delta, elapsed)` eases the rig toward those poses while layering idle float, tap squash/stretch, happy waving, curious/thinking/shy/listening head and brow poses, and speech mouth chatter.
 
 The public factory methods are the replacement seam for a future GLB rig. A GLB-backed implementation can map the same `setMood()`, `triggerTap()`, `setSpeaking()`, `update()`, and `dispose()` calls to authored bones or clips without changing `src/main.ts`.
+
+## Word Garden
+
+The bottom status area is now useful rather than numerical: it opens a calm Word Garden containing up to 12 recent unique words from the existing local learning history. Reopening a word lets Mocchi remember it in conversation without creating points, streaks, or duplicate growth. The garden is stored only in the current browser and has an accessible empty state, Escape-key dismissal, and 48px-or-larger touch targets.
 
 ## Narration Assets
 

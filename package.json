@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "node tests/character-contract.mjs && node tests/audio-contract.mjs && node tests/phase3-contract.mjs && python3 tests/smoke.py",
+    "test": "node tests/character-contract.mjs && node tests/audio-contract.mjs && node tests/phase3-contract.mjs && node tests/word-garden-contract.mjs && python3 tests/smoke.py",
     "test:smoke": "python3 tests/smoke.py"
   },
   "dependencies": {
@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@types/three": "0.185.1",
-    "vite": "5.4.21",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "8.2.0"
   }
 }
