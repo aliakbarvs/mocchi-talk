@@ -43,6 +43,15 @@ def skip_manual(reason: str) -> int:
     return 0
 
 
+def collect_page_errors(page, errors: list[str]) -> None:
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on(
+      "response",
+      lambda response: errors.append(f"{response.status} {response.url}") if response.status >= 400 else None,
+    )
+
+
 def start_dist_server() -> tuple[subprocess.Popen[str], str] | tuple[None, str]:
     server_script = """
 import functools
@@ -206,6 +215,8 @@ def main() -> int:
 
       try:
         page = browser.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        page_errors: list[str] = []
+        collect_page_errors(page, page_errors)
         page.add_init_script("""
 window.__mocchiPlayedAudio = [];
 HTMLMediaElement.prototype.play = function() {
@@ -345,6 +356,7 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(animation_state).to_contain_text("speaking false")
         practice_growth = float(growth_level.get_attribute("data-growth") or "0")
         assert practice_growth > prompt_growth, "Practice completion must auto-record and increase growth."
+        assert page_errors == [], f"Primary page must not report console or HTTP errors: {page_errors}"
 
         # Release the graphics-heavy primary context before starting the isolated
         # fresh-visitor and reduced-motion scenarios. Keeping several animated
@@ -353,9 +365,12 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
 
         fresh_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
         fresh_page = fresh_context.new_page()
+        fresh_errors: list[str] = []
+        collect_page_errors(fresh_page, fresh_errors)
         fresh_page.goto(index_url)
         expect(fresh_page.get_by_test_id("speech-bubble")).to_contain_text("Today's word is salām — Peace.")
         expect(fresh_page.get_by_test_id("word-of-day")).to_contain_text("salām")
+        assert fresh_errors == [], f"Fresh page must not report console or HTTP errors: {fresh_errors}"
         fresh_context.close()
 
         reduce_context = browser.new_context(
@@ -366,8 +381,7 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         )
         reduce_page = reduce_context.new_page()
         reduce_errors: list[str] = []
-        reduce_page.on("console", lambda message: reduce_errors.append(message.text) if message.type == "error" else None)
-        reduce_page.on("pageerror", lambda error: reduce_errors.append(str(error)))
+        collect_page_errors(reduce_page, reduce_errors)
         reduce_page.goto(index_url)
         reduce_animation_state = reduce_page.get_by_test_id("mocchi-animation-state")
         expect(reduce_animation_state).to_contain_text("intro done")
