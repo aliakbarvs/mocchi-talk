@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/word-garden
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
