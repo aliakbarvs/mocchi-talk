@@ -283,6 +283,11 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(page.get_by_test_id("word-detail")).to_contain_text("سَلَام")
         expect(page.get_by_test_id("word-detail")).to_contain_text("root")
         expect(page.get_by_test_id("word-detail")).to_contain_text("peace, safety")
+        expect(page.get_by_test_id("daily-bloom")).to_contain_text("Meet salām")
+        bloom_practice = page.get_by_test_id("practice-daily-word")
+        bloom_practice_box = bloom_practice.bounding_box()
+        assert bloom_practice_box is not None and bloom_practice_box["height"] >= 48, "Daily Bloom action must be at least 48px tall."
+        expect(bloom_practice).to_contain_text("Practice salām")
         page.get_by_role("button", name="Close word of the day").click()
         expect(page.get_by_role("dialog", name="Word of the day")).to_be_hidden()
 
@@ -346,16 +351,29 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         expect(sound_toggle).to_have_attribute("aria-pressed", "true")
 
         record_button = page.get_by_test_id("record-button")
-        record_button.click()
+        page.get_by_test_id("word-of-day").click()
+        page.get_by_test_id("practice-daily-word").click()
+        expect(page.get_by_role("dialog", name="Word of the day")).to_be_hidden()
         expect(record_button).to_have_attribute("aria-pressed", "true")
         expect(animation_state).to_contain_text("mood listening")
-        expect(page.get_by_test_id("speech-bubble")).to_contain_text(re.compile("Listening|Pretending"))
+        expect(page.get_by_test_id("speech-bubble")).to_contain_text("Say salām")
         page.wait_for_function(
           "() => window.__mocchiPlayedAudio.some((url) => url.includes('/audio/mocchi/practice-complete.wav'))"
         )
         expect(animation_state).to_contain_text("speaking false")
-        practice_growth = float(growth_level.get_attribute("data-growth") or "0")
-        assert practice_growth > prompt_growth, "Practice completion must auto-record and increase growth."
+        daily_growth = float(growth_level.get_attribute("data-growth") or "0")
+        assert daily_growth > prompt_growth, "First Daily Bloom practice must increase growth."
+        expect(page.get_by_test_id("word-of-day-label")).to_contain_text("Bloomed today")
+        page.get_by_test_id("word-of-day").click()
+        expect(page.get_by_test_id("daily-bloom")).to_contain_text("has bloomed today")
+        expect(page.get_by_test_id("practice-daily-word")).to_contain_text("Practice salām again")
+        page.get_by_role("button", name="Close word of the day").click()
+
+        record_button.click()
+        expect(record_button).to_have_attribute("aria-pressed", "true")
+        page.wait_for_timeout(2200)
+        repeated_growth = float(growth_level.get_attribute("data-growth") or "0")
+        assert repeated_growth == daily_growth, "Repeat practice on the same day must not add duplicate growth."
         assert page_errors == [], f"Primary page must not report console or HTTP errors: {page_errors}"
 
         # Release the graphics-heavy primary context before starting the isolated

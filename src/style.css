@@ -395,6 +395,16 @@ button:focus-visible {
   font-weight: 900;
 }
 
+.word-of-day[data-complete="true"] {
+  border-color: rgba(255, 107, 87, 0.42);
+  background: rgba(255, 249, 236, 0.94);
+  box-shadow: 0 8px 20px rgba(255, 107, 87, 0.12);
+}
+
+.word-of-day[data-complete="true"] #word-of-day-label {
+  color: var(--coral);
+}
+
 .sheet-backdrop {
   position: absolute;
   inset: 0;
@@ -490,6 +500,36 @@ button:focus-visible {
   padding: 12px;
   border-radius: 8px;
   background: rgba(79, 199, 197, 0.12);
+}
+
+.daily-bloom-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255, 211, 77, 0.64);
+  border-radius: 8px;
+  background: rgba(255, 211, 77, 0.1);
+}
+
+.daily-bloom-card.is-complete {
+  border-color: rgba(255, 107, 87, 0.32);
+  background: rgba(255, 107, 87, 0.08);
+}
+
+.daily-bloom-status {
+  margin: 0;
+  color: rgba(22, 72, 74, 0.88);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.daily-bloom-action {
+  border-color: rgba(255, 211, 77, 0.78);
+}
+
+.daily-bloom-card.is-complete .daily-bloom-action {
+  border-color: rgba(255, 107, 87, 0.44);
 }
 
 .word-garden-panel h2 {

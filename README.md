@@ -33,6 +33,10 @@ The public factory methods are the replacement seam for a future GLB rig. A GLB-
 
 The bottom status area is now useful rather than numerical: it opens a calm Word Garden containing up to 12 recent unique words from the existing local learning history. Reopening a word lets Mocchi remember it in conversation without creating points, streaks, or duplicate growth. The garden is stored only in the current browser and has an accessible empty state, Escape-key dismissal, and 48px-or-larger touch targets.
 
+## Daily Bloom
+
+The word of the day now leads into one complete, pressure-free ritual: meet the word, practice it with Mocchi, and see it marked as **Bloomed today**. Completion is stored only in the browser and resets by local calendar day. Repeating the word is always welcome, but only the first daily completion adds growth, so the experience avoids streak pressure and accidental farming.
+
 ## Narration Assets
 
 Mocchi narration is played from offline WAV assets at `public/audio/mocchi/<clip>.wav`, which Vite serves relative to the app route. The app does not call a runtime TTS model, browser speech synthesis, or a network voice service.
