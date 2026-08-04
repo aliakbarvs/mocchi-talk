@@ -20,6 +20,11 @@ type WordJarEntry = {
   addedAt: string;
 };
 
+type DailyBloomRecord = {
+  date: string;
+  word: string;
+};
+
 type MatchaWord = {
   arabic: string;
   transliteration: string;
@@ -124,6 +129,7 @@ const soundKey = 'mocchi-talk.sound-enabled';
 const hintKey = 'mocchi-talk.hint-seen';
 const wordJarKey = 'mocchi-talk.word-jar';
 const visitKey = 'mocchi-talk.has-visited';
+const dailyBloomKey = 'mocchi-talk.daily-bloom';
 const maxStoredWords = 40;
 
 const canvas = mustGet<HTMLCanvasElement>('scene-canvas');
@@ -144,6 +150,7 @@ const wordGardenSummary = mustGet<HTMLElement>('word-garden-summary');
 const wordGardenList = mustGet<HTMLElement>('word-garden-list');
 const onboardingHint = mustGet<HTMLElement>('onboarding-hint');
 const wordOfDayButton = mustGet<HTMLButtonElement>('word-of-day');
+const wordOfDayLabel = mustGet<HTMLElement>('word-of-day-label');
 const wordOfDayArabic = mustGet<HTMLElement>('word-of-day-arabic');
 const wordOfDayTransliteration = mustGet<HTMLElement>('word-of-day-transliteration');
 const wordOfDayMeaning = mustGet<HTMLElement>('word-of-day-meaning');
@@ -159,6 +166,9 @@ const wordDetailAyahReference = mustGet<HTMLElement>('word-detail-ayah-reference
 const wordDetailExample = mustGet<HTMLElement>('word-detail-example');
 const wordDetailCulturalNote = mustGet<HTMLElement>('word-detail-cultural-note');
 const wordDetailParentPrompt = mustGet<HTMLElement>('word-detail-parent-prompt');
+const dailyBloomCard = mustGet<HTMLElement>('daily-bloom');
+const dailyBloomStatus = mustGet<HTMLElement>('daily-bloom-status');
+const practiceDailyWordButton = mustGet<HTMLButtonElement>('practice-daily-word');
 const bloomCardSheet = mustGet<HTMLElement>('bloom-card-sheet');
 const closeBloomCardButton = mustGet<HTMLButtonElement>('close-bloom-card');
 const bloomCardPreview = mustGet<HTMLImageElement>('bloom-card-preview');
@@ -177,6 +187,7 @@ let speechStateTimer = 0;
 let speechRun = 0;
 let soundEnabled = loadSoundPreference();
 let wordJar = loadWordJar();
+let dailyBloom = loadDailyBloom();
 let growthLevel = growthLevelForCount(wordJar.length);
 let tapActive = false;
 let speakingActive = false;
@@ -444,10 +455,12 @@ function renderWordOfDay(word: MatchaWord): void {
   wordDetailExample.textContent = `${word.example} — ${word.example_translation}`;
   wordDetailCulturalNote.textContent = word.cultural_note;
   wordDetailParentPrompt.textContent = word.parent_prompt;
+  updateDailyBloomUi();
 }
 
 function setupWordOfDaySheet(): void {
   wordOfDayButton.addEventListener('click', () => {
+    updateDailyBloomUi();
     wordDetailSheet.hidden = false;
     closeWordDetailButton.focus();
   });
@@ -462,6 +475,16 @@ function setupWordOfDaySheet(): void {
       wordDetailSheet.hidden = true;
       wordOfDayButton.focus();
     }
+  });
+
+  practiceDailyWordButton.addEventListener('click', () => {
+    if (!dailyWord) {
+      return;
+    }
+
+    wordDetailSheet.hidden = true;
+    recordButton.focus();
+    startPractice(dailyWord);
   });
 }
 
@@ -483,32 +506,123 @@ function setupControls(): void {
   });
 
   recordButton.addEventListener('click', () => {
-    clearTimeout(recordTimer);
-    speechLockedByInteraction = true;
-    const simulatedOnly = !navigator.mediaDevices?.getUserMedia;
-    const listeningText = simulatedOnly
+    startPractice(dailyWord);
+  });
+}
+
+function startPractice(word?: MatchaWord): void {
+  clearTimeout(recordTimer);
+  speechLockedByInteraction = true;
+  const simulatedOnly = !navigator.mediaDevices?.getUserMedia;
+  const practiceWord = word?.transliteration;
+  const listeningText = practiceWord
+    ? `Say ${practiceWord} with Mocchi. Your voice stays on this device.`
+    : simulatedOnly
       ? 'Pretending to listen. Mocchi can practice without microphone permission.'
       : 'Listening in practice mode. No microphone permission needed.';
 
-    recordButton.setAttribute('aria-pressed', 'true');
-    recordButton.classList.add('is-recording');
-    setMood('listening');
-    updateSpeech(listeningText);
-    showToast('Voice practice is local demo mode.');
+  recordButton.setAttribute('aria-pressed', 'true');
+  recordButton.classList.add('is-recording');
+  setMood('listening');
+  updateSpeech(listeningText);
+  showToast(practiceWord ? `Practice ${practiceWord}, softly.` : 'Voice practice is local demo mode.');
 
-    recordTimer = window.setTimeout(() => {
-      recordButton.setAttribute('aria-pressed', 'false');
-      recordButton.classList.remove('is-recording');
-      recordWord('practice voice');
+  recordTimer = window.setTimeout(() => {
+    recordButton.setAttribute('aria-pressed', 'false');
+    recordButton.classList.remove('is-recording');
+
+    if (word) {
+      const firstBloomToday = completeDailyBloom(word);
       applyResponse({
         id: 'feel',
         mood: 'happy',
-        response: 'Mocchi heard a brave practice voice.',
-        toast: 'Practice complete.',
+        response: firstBloomToday
+          ? `${capitalize(word.transliteration)} bloomed today. Mocchi will remember your practice.`
+          : `Mocchi heard ${word.transliteration} again. Repeating is always welcome.`,
+        toast: firstBloomToday ? 'Today’s word bloomed.' : 'Gentle repeat complete.',
         audioClip: 'practice-complete'
       });
-    }, reducedMotion ? 900 : 1800);
-  });
+      return;
+    }
+
+    recordWord('practice voice');
+    applyResponse({
+      id: 'feel',
+      mood: 'happy',
+      response: 'Mocchi heard a brave practice voice.',
+      toast: 'Practice complete.',
+      audioClip: 'practice-complete'
+    });
+  }, reducedMotion ? 900 : 1800);
+}
+
+function localDateStamp(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function loadDailyBloom(): DailyBloomRecord | undefined {
+  const stored = readStorage(dailyBloomKey);
+  if (!stored) {
+    return undefined;
+  }
+
+  try {
+    const candidate = JSON.parse(stored) as Partial<DailyBloomRecord>;
+    if (typeof candidate.date !== 'string' || typeof candidate.word !== 'string') {
+      return undefined;
+    }
+
+    return { date: candidate.date, word: candidate.word };
+  } catch {
+    return undefined;
+  }
+}
+
+function hasCompletedDailyBloom(word: MatchaWord): boolean {
+  return (
+    dailyBloom?.date === localDateStamp() &&
+    dailyBloom.word.toLocaleLowerCase() === word.transliteration.toLocaleLowerCase()
+  );
+}
+
+function completeDailyBloom(word: MatchaWord): boolean {
+  if (hasCompletedDailyBloom(word)) {
+    updateDailyBloomUi();
+    return false;
+  }
+
+  dailyBloom = { date: localDateStamp(), word: word.transliteration };
+  writeStorage(dailyBloomKey, JSON.stringify(dailyBloom));
+  recordWord(word.transliteration);
+  updateDailyBloomUi();
+  return true;
+}
+
+function updateDailyBloomUi(): void {
+  if (!dailyWord) {
+    dailyBloomStatus.textContent = 'Meet today’s word, then practice it with Mocchi.';
+    practiceDailyWordButton.textContent = 'Practice today’s word';
+    practiceDailyWordButton.disabled = true;
+    dailyBloomCard.classList.remove('is-complete');
+    wordOfDayButton.dataset.complete = 'false';
+    return;
+  }
+
+  const completed = hasCompletedDailyBloom(dailyWord);
+  const word = dailyWord.transliteration;
+  wordOfDayLabel.textContent = completed ? 'Bloomed today' : 'Word of the day';
+  wordOfDayButton.dataset.complete = String(completed);
+  dailyBloomCard.classList.toggle('is-complete', completed);
+  dailyBloomStatus.textContent = completed
+    ? `${capitalize(word)} has bloomed today. Repeat it whenever it feels good.`
+    : `Meet ${word}, say it with Mocchi, and let today’s word bloom.`;
+  practiceDailyWordButton.textContent = completed ? `Practice ${word} again` : `Practice ${word}`;
+  practiceDailyWordButton.setAttribute('aria-label', completed ? `Practice ${word} again` : `Practice today’s word ${word}`);
+  practiceDailyWordButton.disabled = false;
+  recordButton.setAttribute('aria-label', completed ? `Practice ${word} again` : `Practice today’s word ${word}`);
 }
 
 function applyResponse(prompt: Prompt): void {

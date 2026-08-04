@@ -61,7 +61,7 @@
             data-testid="word-of-day"
             aria-label="Open word of the day"
           >
-            <span id="word-of-day-label">Word of the day</span>
+            <span id="word-of-day-label" data-testid="word-of-day-label">Word of the day</span>
             <span>
               <span id="word-of-day-arabic" class="word-of-day-arabic">سَلَام</span>
               <strong id="word-of-day-transliteration">Loading</strong>
@@ -69,7 +69,7 @@
             </span>
           </button>
           <div id="onboarding-hint" class="onboarding-hint">
-            Tap Mocchi for a friendly reaction. Session count is saved only in this browser.
+            Tap Mocchi or open today’s word. Learning stays gently on this device.
           </div>
           <div id="feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
           <div
@@ -117,6 +117,20 @@
               <p class="word-detail-example" id="word-detail-example"></p>
               <p class="word-detail-note" id="word-detail-cultural-note"></p>
               <p class="word-detail-note" id="word-detail-parent-prompt"></p>
+              <div id="daily-bloom" class="daily-bloom-card" data-testid="daily-bloom">
+                <p id="daily-bloom-status" class="daily-bloom-status">
+                  Meet today’s word, then practice it with Mocchi.
+                </p>
+                <button
+                  id="practice-daily-word"
+                  class="prompt-button daily-bloom-action"
+                  type="button"
+                  data-testid="practice-daily-word"
+                  disabled
+                >
+                  Practice today’s word
+                </button>
+              </div>
             </section>
           </div>
           <div
