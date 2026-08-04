@@ -354,6 +354,7 @@ localStorage.setItem('mocchi-talk.has-visited', 'true');
         page.get_by_test_id("word-of-day").click()
         page.get_by_test_id("practice-daily-word").click()
         expect(page.get_by_role("dialog", name="Word of the day")).to_be_hidden()
+        assert page.evaluate("() => document.activeElement?.id") == "record-button", "Daily Bloom must move focus to the active practice control."
         expect(record_button).to_have_attribute("aria-pressed", "true")
         expect(animation_state).to_contain_text("mood listening")
         expect(page.get_by_test_id("speech-bubble")).to_contain_text("Say salām")

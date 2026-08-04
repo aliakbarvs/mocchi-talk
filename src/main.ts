@@ -483,6 +483,7 @@ function setupWordOfDaySheet(): void {
     }
 
     wordDetailSheet.hidden = true;
+    recordButton.focus();
     startPractice(dailyWord);
   });
 }
